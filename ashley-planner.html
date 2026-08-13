@@ -404,6 +404,41 @@
     40%{transform:scale(1);opacity:1;}
   }
 
+  /* Push-to-HubSpot modal */
+  .push-modal-overlay{
+    position:fixed;inset:0;z-index:7000;background:rgba(20,22,25,.5);
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  .push-modal-overlay.show{display:flex;}
+  .push-modal-card{
+    background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;
+    box-shadow:0 20px 60px rgba(0,0,0,.3);
+  }
+  .push-modal-title{font-size:18px;font-weight:700;color:var(--ink);margin-bottom:16px;}
+  .push-field-label{
+    display:block;font-size:11.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.03em;margin:12px 0 5px;
+  }
+  .push-field-label:first-of-type{margin-top:0;}
+  .push-field-input{
+    width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 11px;
+    font-family:inherit;font-size:14px;color:var(--ink);background:#fff;box-sizing:border-box;
+  }
+  .push-field-input:focus{outline:none;border-color:var(--navy);}
+  .push-modal-error{color:var(--personal);font-size:12.5px;margin-top:10px;min-height:16px;}
+  .push-modal-actions{display:flex;gap:10px;margin-top:16px;}
+  .push-modal-cancel{
+    flex:1;border:1px solid var(--border);background:#fff;color:var(--ink);
+    border-radius:8px;padding:10px;font-family:inherit;font-size:14px;cursor:pointer;
+  }
+  .push-modal-cancel:hover{background:#F5F4F1;}
+  .push-modal-submit{
+    flex:1.4;border:none;background:var(--navy);color:#fff;
+    border-radius:8px;padding:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  }
+  .push-modal-submit:hover:not(:disabled){background:var(--navy-light);}
+  .push-modal-submit:disabled{opacity:.6;cursor:default;}
+
   .auth-card{
     background:#fff;border-radius:16px;padding:36px 28px;max-width:340px;width:100%;
     text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);
@@ -589,6 +624,34 @@
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- PUSH TO HUBSPOT MODAL -->
+<div class="push-modal-overlay" id="pushModalOverlay">
+  <div class="push-modal-card">
+    <div class="push-modal-title">Push to HubSpot</div>
+
+    <label class="push-field-label" for="pushTaskInput">Task</label>
+    <input type="text" id="pushTaskInput" class="push-field-input">
+
+    <label class="push-field-label" for="pushEstTimeInput">Est. Time (hrs)</label>
+    <input type="number" id="pushEstTimeInput" class="push-field-input" min="0" step="0.25" placeholder="e.g. 1.5">
+
+    <label class="push-field-label" for="pushDueDateInput">Due Date</label>
+    <input type="date" id="pushDueDateInput" class="push-field-input">
+
+    <label class="push-field-label" for="pushProjectSelect">Project/Client</label>
+    <select id="pushProjectSelect" class="push-field-input">
+      <option value="">— none —</option>
+    </select>
+
+    <div class="push-modal-error" id="pushModalError"></div>
+
+    <div class="push-modal-actions">
+      <button class="push-modal-cancel" id="pushModalCancelBtn">Cancel</button>
+      <button class="push-modal-submit" id="pushModalSubmitBtn">Push to HubSpot</button>
+    </div>
+  </div>
 </div>
 
 <!-- AUTH GATE -->
@@ -1265,31 +1328,79 @@ async function importAllData(file){
   location.reload();
 }
 
-/* ---------------- HubSpot push (on-demand, per-task) ----------------
+/* ---------------- HubSpot push (via modal, per-task) ----------------
    Calls the same Supabase Edge Function as the read-sync/write-back, using
    its "create" action. Token stays server-side; the browser never sees it. */
 const HUBSPOT_OWNER_ID = '535583785';
 const HUBSPOT_COMPANY_ID = '55033489750';
+const PUSH_PROJECT_OPTIONS = [
+  'Personal', 'Church',
+  'Client > Stevie Social', 'Client > Epicosity', 'Client > Fidelity Roofing',
+  'Client > Lemuel Garcia', 'Client > Abel Brito'
+];
 
-async function pushTaskToHubSpot(taskText, dueIso, btnEl){
-  if(!taskText || !taskText.trim()){ return; }
-  btnEl.disabled = true;
-  btnEl.textContent = 'Sending…';
+let pushModalCtx = null; // {btnEl, onSuccess}
+
+function openPushModal(taskText, btnEl, onSuccess){
+  pushModalCtx = { btnEl, onSuccess };
+  document.getElementById('pushTaskInput').value = taskText || '';
+  document.getElementById('pushEstTimeInput').value = '';
+  document.getElementById('pushDueDateInput').value = isoDate(new Date()); // defaults to today
+  document.getElementById('pushProjectSelect').value = '';
+  document.getElementById('pushModalError').textContent = '';
+  document.getElementById('pushModalOverlay').classList.add('show');
+}
+function closePushModal(){
+  document.getElementById('pushModalOverlay').classList.remove('show');
+  pushModalCtx = null;
+}
+async function submitPushModal(){
+  if(!pushModalCtx) return;
+  const subject = document.getElementById('pushTaskInput').value.trim();
+  const estTime = document.getElementById('pushEstTimeInput').value;
+  const dueIso = document.getElementById('pushDueDateInput').value;
+  const projectClient = document.getElementById('pushProjectSelect').value;
+  const errEl = document.getElementById('pushModalError');
+
+  if(!subject){ errEl.textContent = 'Task name is required.'; return; }
+  if(!dueIso){ errEl.textContent = 'Due date is required.'; return; }
+  errEl.textContent = '';
+
+  const submitBtn = document.getElementById('pushModalSubmitBtn');
+  submitBtn.disabled = true; submitBtn.textContent = 'Sending…';
+
+  const ok = await pushTaskToHubSpot(subject, dueIso, estTime, projectClient);
+
+  submitBtn.disabled = false; submitBtn.textContent = 'Push to HubSpot';
+
+  if(ok){
+    if(pushModalCtx.btnEl){
+      pushModalCtx.btnEl.textContent = '✓ Sent';
+      pushModalCtx.btnEl.classList.add('hb-sent');
+      pushModalCtx.btnEl.disabled = true;
+    }
+    if(pushModalCtx.onSuccess) pushModalCtx.onSuccess();
+    closePushModal();
+  }else{
+    errEl.textContent = 'Could not push to HubSpot — check your connection and try again.';
+  }
+}
+
+async function pushTaskToHubSpot(subject, dueIso, estimatedTime, projectClient){
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'create', subject:taskText, dueIso }
+      body: {
+        action:'create', subject, dueIso,
+        estimatedTime: (estimatedTime!==undefined && estimatedTime!==null && estimatedTime!=='') ? estimatedTime : null,
+        projectClient: projectClient || null
+      }
     });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     if(!data || !data.success) throw new Error('Unexpected response');
-
-    btnEl.textContent = '✓ Sent';
-    btnEl.classList.add('hb-sent');
     return true;
   }catch(e){
     console.error('HubSpot push failed', e);
-    btnEl.disabled = false;
-    btnEl.textContent = '⚠ Retry';
     return false;
   }
 }
@@ -1830,6 +1941,15 @@ async function init(){
   document.getElementById('hamburgerBtn').onclick=()=>openDrawer();
   document.getElementById('drawerOverlay').onclick=()=>closeDrawer();
   document.getElementById('drawerCloseBtn').onclick=()=>closeDrawer();
+
+  // Push-to-HubSpot modal
+  const projectSelect = document.getElementById('pushProjectSelect');
+  PUSH_PROJECT_OPTIONS.forEach(opt=>{
+    const o=document.createElement('option'); o.value=opt; o.textContent=opt;
+    projectSelect.appendChild(o);
+  });
+  document.getElementById('pushModalCancelBtn').onclick=()=>closePushModal();
+  document.getElementById('pushModalSubmitBtn').onclick=()=>submitPushModal();
 }
 function openDrawer(){
   document.getElementById('sideDrawer').classList.add('open');
@@ -2301,9 +2421,8 @@ function renderWeekdayDay(){
     const hbBtn=document.createElement('button'); hbBtn.className='hb-btn small'+(t.hubspot?' hb-sent':'');
     hbBtn.textContent = t.hubspot ? '✓' : '→ Push';
     if(t.hubspot) hbBtn.disabled=true;
-    hbBtn.onclick=async()=>{
-      const ok = await pushTaskToHubSpot(t.text, isoDate(selectedDate), hbBtn);
-      if(ok){ t.hubspot=true; saveDayDebounced(); }
+    hbBtn.onclick=()=>{
+      openPushModal(t.text, hbBtn, ()=>{ t.hubspot=true; saveDayDebounced(); });
     };
     const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
     del.onclick=()=>{ dayData.otherTasks.splice(i,1); renderWeekdayDay(); saveDayDebounced(); };
