@@ -2,9 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ashley's Planner">
 <title>Ashley's Quarterly Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root{
     --navy:#3E4852;
@@ -328,6 +334,37 @@
   }
   .storage-error.show{opacity:1;transform:translateY(0);}
 
+  /* Auth gate */
+  .auth-gate{
+    position:fixed;inset:0;z-index:5000;
+    background:linear-gradient(135deg,var(--navy),var(--navy-light));
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;
+  }
+  .auth-card{
+    background:#fff;border-radius:16px;padding:36px 28px;max-width:340px;width:100%;
+    text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);
+  }
+  .auth-card h1{font-size:19px;margin:0 0 6px;color:var(--ink);}
+  .auth-card p{font-size:13px;color:var(--muted);margin:0 0 22px;line-height:1.5;}
+  .google-btn{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:100%;background:#fff;border:1px solid #DADCE0;border-radius:8px;
+    padding:11px 14px;font-family:inherit;font-size:14px;font-weight:600;color:#3C4043;
+    cursor:pointer;transition:box-shadow .15s ease;
+  }
+  .google-btn:hover{box-shadow:0 1px 6px rgba(0,0,0,.15);}
+  .google-btn:disabled{opacity:.6;cursor:default;}
+  .auth-spinner{
+    width:26px;height:26px;border:3px solid #E3E3E0;border-top-color:var(--navy);
+    border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .auth-denied-email{
+    font-family:ui-monospace,monospace;font-size:12px;background:#F5F4F1;
+    border-radius:6px;padding:6px 10px;margin:12px 0;color:var(--personal);word-break:break-all;
+  }
+
   .empty-hint{font-size:12px;color:var(--muted);font-style:italic;padding:6px 0;}
 
   .backup-row{display:flex;gap:8px;justify-content:flex-end;margin-bottom:10px;}
@@ -415,7 +452,31 @@
 </style>
 </head>
 <body>
-<div class="app">
+
+<!-- AUTH GATE -->
+<div class="auth-gate" id="authGate">
+  <div class="auth-card" id="authCardLoading">
+    <div class="auth-spinner"></div>
+    <p style="margin:0;">Checking sign-in…</p>
+  </div>
+  <div class="auth-card" id="authCardSignIn" style="display:none;">
+    <h1>Ashley's Planner</h1>
+    <p>Sign in with Google to access your planner.</p>
+    <button class="google-btn" id="googleSignInBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.71H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.71A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.17.29-1.71V4.96H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.04l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.59-2.59C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.96l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+      Sign in with Google
+    </button>
+  </div>
+  <div class="auth-card" id="authCardDenied" style="display:none;">
+    <h1>Not authorized</h1>
+    <p>This planner is private to one account.</p>
+    <div class="auth-denied-email" id="authDeniedEmail"></div>
+    <button class="google-btn" id="googleTryAgainBtn">Try a different account</button>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none;">
+
 
   <!-- MORNING PULSE -->
   <div class="pulse" id="pulseCard">
@@ -727,51 +788,108 @@
    ASHLEY'S DIGITAL PLANNER
    ================================================================ */
 
-/* ---------------- Storage: artifact storage, hardened ----------------
-   Back to window.storage (the GitHub-direct approach is not reachable — an
-   artifact's network access is limited to api.anthropic.com, confirmed by the
-   "Failed to fetch" error; there's no way around that from inside the sandbox).
-   Every get/set now retries on transient failure, and there's a manual
-   Export/Import so your data is never solely dependent on this backend. */
+/* ---------------- Auth: Supabase + Google, gated to one email ----------------
+   Google OAuth alone would let ANY Google account complete sign-in — the real
+   security boundary is Row Level Security in the database (each user can only
+   ever touch their own rows). This email check is just an access gate on top
+   of that, so a random signed-in stranger doesn't see the app UI at all. */
+const SUPABASE_URL = 'https://nqagqsuwwoiyraiqwgau.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_3i-orJP05ClbKbPtkmW6RQ_egjHBbiH';
+const ALLOWED_EMAIL = 'hello@ashleyquintana.com';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+
+async function initAuth(){
+  document.getElementById('googleSignInBtn').onclick = doGoogleSignIn;
+  document.getElementById('googleTryAgainBtn').onclick = doGoogleSignIn;
+
+  const { data:{ session } } = await sb.auth.getSession();
+  await handleSession(session);
+
+  sb.auth.onAuthStateChange(async (_event, session)=>{ await handleSession(session); });
+}
+
+async function doGoogleSignIn(){
+  await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.href } });
+}
+
+async function handleSession(session){
+  const loadingCard=document.getElementById('authCardLoading');
+  const signInCard=document.getElementById('authCardSignIn');
+  const deniedCard=document.getElementById('authCardDenied');
+
+  if(session && session.user && session.user.email &&
+     session.user.email.toLowerCase()===ALLOWED_EMAIL.toLowerCase()){
+    currentUser = session.user;
+    document.getElementById('authGate').style.display='none';
+    document.getElementById('appRoot').style.display='block';
+    init();
+  }else if(session && session.user){
+    await sb.auth.signOut();
+    currentUser = null;
+    loadingCard.style.display='none'; signInCard.style.display='none';
+    deniedCard.style.display='block';
+    document.getElementById('authDeniedEmail').textContent = session.user.email||'(no email)';
+  }else{
+    currentUser = null;
+    loadingCard.style.display='none'; deniedCard.style.display='none';
+    signInCard.style.display='block';
+  }
+}
+
+/* ---------------- Storage: Supabase, scoped to the signed-in user ----------------
+   One table (planner_data), same key/value shape the app already used with
+   window.storage — key text, value jsonb, scoped by user_id + protected by RLS. */
 async function sget(key){
-  for(let attempt=0; attempt<3; attempt++){
+  if(!currentUser) return null;
+  for(let attempt=0; attempt<2; attempt++){
     try{
-      const r = await window.storage.get(key,false);
+      const { data, error } = await sb.from('planner_data')
+        .select('value').eq('user_id', currentUser.id).eq('key', key).maybeSingle();
+      if(error) throw error;
       hideStorageError();
-      return r ? JSON.parse(r.value) : null;
+      return data ? data.value : null;
     }catch(e){
-      if(attempt===2){
-        console.error('storage get failed after retries', key, e);
+      if(attempt===1){
+        console.error('sget failed', key, e);
         showStorageError('Could not load some data (' + (e.message||e) + '). Try reloading — if it keeps happening, use Export to back up what\'s on screen.');
         return null;
       }
-      await sleep(300 * (attempt+1));
+      await sleep(400);
     }
   }
 }
 async function sset(key,val){
-  for(let attempt=0; attempt<3; attempt++){
+  if(!currentUser) return false;
+  for(let attempt=0; attempt<2; attempt++){
     try{
-      await window.storage.set(key, JSON.stringify(val), false);
+      const { error } = await sb.from('planner_data').upsert({
+        user_id: currentUser.id, key: key, value: val, updated_at: new Date().toISOString()
+      }, { onConflict:'user_id,key' });
+      if(error) throw error;
       hideStorageError();
       flashSaved();
       return true;
     }catch(e){
-      if(attempt===2){
-        console.error('storage set failed after retries', key, e);
+      if(attempt===1){
+        console.error('sset failed', key, e);
         showStorageError('Save failed (' + (e.message||e) + '). Your change is still on screen — don\'t close this tab. Tap Export to back it up now.');
         return false;
       }
-      await sleep(300 * (attempt+1));
+      await sleep(400);
     }
   }
 }
 async function slist(prefix){
+  if(!currentUser) return {keys:[]};
   try{
-    const r = await window.storage.list(prefix, false);
-    return r || {keys:[]};
+    const { data, error } = await sb.from('planner_data')
+      .select('key').eq('user_id', currentUser.id).like('key', prefix+'%');
+    if(error) throw error;
+    return { keys: (data||[]).map(r=>r.key) };
   }catch(e){
-    console.error('storage list failed', e);
+    console.error('slist failed', e);
     return {keys:[]};
   }
 }
@@ -2000,7 +2118,7 @@ function renderEditableList(elId, key){
   });
 }
 
-init();
+initAuth();
 </script>
 </body>
 </html>
