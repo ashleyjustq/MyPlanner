@@ -123,7 +123,9 @@
   }
   .card-title{font-size:22px;font-weight:600;color:var(--ink);}
   .card-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
-  .header-badges{display:flex;gap:14px;align-items:baseline;}
+  .header-badges{display:flex;gap:16px;align-items:baseline;}
+  .header-badge-group{display:flex;align-items:baseline;gap:5px;}
+  .header-badge-label{font-size:12px;color:var(--muted);font-weight:400;}
   .header-badge{font-size:16px;font-weight:700;color:var(--navy);}
   .badge{
     background:var(--navy);
@@ -750,7 +752,7 @@
       <div class="card-title-row">
         <div class="card-title">This Week</div>
         <div class="header-badges">
-          <span class="header-badge" id="weekWeekNum">1 / 13</span>
+          <span class="header-badge-group"><span class="header-badge-label">Week</span><span class="header-badge" id="weekWeekNum">1 / 13</span></span>
           <span class="header-badge" id="weekOfLabel"></span>
         </div>
       </div>
@@ -825,8 +827,8 @@
       <div class="card-title-row">
         <div class="card-title">Monthly Calendar</div>
         <div class="header-badges">
-          <span class="header-badge" id="monthLabelField">—</span>
-          <span class="header-badge" id="yearLabelField">—</span>
+          <span class="header-badge-group"><span class="header-badge-label">Month</span><span class="header-badge" id="monthLabelField">—</span></span>
+          <span class="header-badge-group"><span class="header-badge-label">Year</span><span class="header-badge" id="yearLabelField">—</span></span>
         </div>
       </div>
 
@@ -878,8 +880,8 @@
       <div class="card-title-row">
         <div class="card-title">This Quarter</div>
         <div class="header-badges">
-          <span class="header-badge" id="qQuarter">Q3</span>
-          <span class="header-badge" id="qYear">2026</span>
+          <span class="header-badge-group"><span class="header-badge-label">Quarter</span><span class="header-badge" id="qQuarter">Q3</span></span>
+          <span class="header-badge-group"><span class="header-badge-label">Year</span><span class="header-badge" id="qYear">2026</span></span>
         </div>
       </div>
 
