@@ -503,6 +503,7 @@
     <button class="backup-btn" id="exportBtn">⭳ Export backup</button>
     <label class="backup-btn" for="importFile">⭱ Import backup</label>
     <input type="file" id="importFile" accept="application/json" style="display:none;">
+    <button class="backup-btn" id="signOutBtn">Sign out</button>
   </div>
 
   <!-- ============ DAY VIEW ============ -->
@@ -811,7 +812,20 @@ async function initAuth(){
 }
 
 async function doGoogleSignIn(){
-  await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.href } });
+  // Requesting calendar.readonly here (alongside the default login scopes) is what
+  // lets Calendar sync call Google's API directly with the token this sign-in
+  // returns — no separate connection step needed.
+  await sb.auth.signInWithOAuth({
+    provider:'google',
+    options:{
+      redirectTo: window.location.href,
+      scopes: 'https://www.googleapis.com/auth/calendar.readonly',
+      queryParams: { access_type:'offline', prompt:'consent' }
+    }
+  });
+}
+async function doSignOut(){
+  await sb.auth.signOut();
 }
 
 async function handleSession(session){
@@ -1049,37 +1063,53 @@ function categoryColorFor(colorId){
 }
 
 /* ---------------- Google Calendar sync (on-demand, read-only) ----------------
-   Same mechanism as the HubSpot push: routes through Anthropic's API with your
-   Google Calendar connector attached. Pulls real events for one date and lays
-   them into a read-only timeline — it never writes back to your calendar. */
+   Calls Google's Calendar API directly using the access token from your Google
+   sign-in (session.provider_token) — the calendar.readonly scope requested at
+   login is what makes this token valid for calendar reads. Never writes back.
+   Note: this token is only good for about an hour; if it's expired, sign out
+   and back in to get a fresh one. */
 async function syncFromCalendar(dateIso, btnEl){
-  const originalText = btnEl.textContent;
   btnEl.disabled = true;
   btnEl.textContent = 'Syncing…';
   try{
-    const prompt = 'List every event on my primary Google Calendar for ' + dateIso + ' only. '
-      + 'Reply with ONLY a JSON array and nothing else — no explanation, no markdown code fences. '
-      + 'Exact format: [{"title":"Event name","start":"HH:MM","end":"HH:MM","colorId":"11"}] using 24-hour time. '
-      + 'Include the numeric colorId Google Calendar reports for each event (the colorId field on the event, 1-11). '
-      + 'If an event has no explicit color set, omit the colorId field for that event. '
-      + 'If there are no events that day, reply with exactly: []';
+    const { data:{ session } } = await sb.auth.getSession();
+    const token = session && session.provider_token;
+    if(!token){
+      throw new Error('No calendar access yet — sign out and back in to grant it');
+    }
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
-        messages: [{ role:'user', content: prompt }],
-        mcp_servers: [{ type:'url', url:'https://calendarmcp.googleapis.com/mcp/v1', name:'google-calendar-mcp' }]
-      })
+    const dayStart = new Date(dateIso+'T00:00:00');
+    const dayEnd = new Date(dateIso+'T23:59:59');
+    const params = new URLSearchParams({
+      timeMin: dayStart.toISOString(),
+      timeMax: dayEnd.toISOString(),
+      singleEvents: 'true',
+      orderBy: 'startTime',
+      maxResults: '50'
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
+
+    const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?'+params.toString(), {
+      headers: { 'Authorization': 'Bearer '+token }
+    });
+    if(!res.ok){
+      if(res.status===401) throw new Error('Calendar access expired — sign out and back in to refresh it');
+      throw new Error('HTTP '+res.status);
+    }
     const data = await res.json();
-    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
-    const cleaned = text.replace(/```json/gi,'').replace(/```/g,'').trim();
-    const events = JSON.parse(cleaned);
-    if(!Array.isArray(events)) throw new Error('Unexpected response shape');
+
+    const fmtHM = (d)=> String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    const events = (data.items||[])
+      .filter(ev => ev.start && ev.start.dateTime) // skip all-day events — no meaningful time slot for the timeline
+      .map(ev=>{
+        const startD = new Date(ev.start.dateTime);
+        const endD = (ev.end && ev.end.dateTime) ? new Date(ev.end.dateTime) : new Date(startD.getTime()+30*60000);
+        return {
+          title: ev.summary || 'Untitled',
+          start: fmtHM(startD),
+          end: fmtHM(endD),
+          colorId: ev.colorId || null
+        };
+      });
 
     btnEl.textContent = '✓ Synced';
     setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
@@ -1422,6 +1452,7 @@ async function init(){
     if(e.target.files && e.target.files[0]) importAllData(e.target.files[0]);
     e.target.value='';
   };
+  document.getElementById('signOutBtn').onclick=()=>doSignOut();
 }
 
 async function changeDay(delta){
