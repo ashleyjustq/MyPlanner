@@ -500,6 +500,31 @@
   }
   .meal-table textarea:focus{outline:none;background:#FBFBF9;}
 
+  /* Month view calendar grid */
+  .month-grid-wrap{overflow-x:auto;margin-bottom:6px;}
+  .month-table{width:100%;border-collapse:collapse;font-size:11px;min-width:680px;table-layout:fixed;}
+  .month-table th{
+    background:var(--navy);color:#fff;font-size:10px;text-transform:uppercase;
+    padding:6px 4px;text-align:center;letter-spacing:.03em;
+  }
+  .month-table th.month-wk-col{width:34px;}
+  .month-table td{border:1px solid var(--border);padding:4px 5px;vertical-align:top;height:76px;}
+  .month-table td.wk-cell{
+    background:#F5F4F1;color:var(--muted);font-weight:700;font-size:10.5px;
+    text-align:center;vertical-align:middle;
+  }
+  .month-table td.out-of-month{background:#FAFAF9;}
+  .month-day-num{font-size:11px;color:var(--ink);font-weight:600;margin-bottom:2px;}
+  .month-day-num.is-today{
+    display:inline-block;background:var(--navy);color:#fff;border-radius:50%;
+    width:18px;height:18px;line-height:18px;text-align:center;font-size:10.5px;
+  }
+  .month-event{
+    font-size:9px;background:var(--personal);color:#fff;border-radius:3px;
+    padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
   /* Day view's single-day meal table (mirrors the week table, one column) */
   .day-meal-table{width:100%;border-collapse:collapse;font-size:12px;}
   .day-meal-table td{border:1px solid var(--border);padding:5px 7px;vertical-align:top;}
@@ -579,6 +604,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-view="today">Day</button>
     <button class="tab-btn" data-view="week">Week</button>
+    <button class="tab-btn" data-view="month">Month</button>
     <button class="tab-btn" data-view="quarter">Quarter</button>
   </div>
 
@@ -778,6 +804,50 @@
       <div class="section-bar">Shopping List</div>
       <div id="shoppingList"></div>
       <div class="add-row"><button class="add-btn" id="addShopBtn">+ add item</button></div>
+    </div>
+  </div>
+
+  <!-- ============ MONTH VIEW ============ -->
+  <div class="view" id="view-month">
+
+    <div class="navbar">
+      <button class="nav-arrow" id="monthPrev">‹</button>
+      <div class="navbar-center">
+        <div id="navMonthLabel">—</div>
+        <button class="jump-btn" id="jumpThisMonth">Jump to this month</button>
+      </div>
+      <button class="nav-arrow" id="monthNext">›</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">Monthly Calendar</div>
+        <div style="display:flex;gap:14px;">
+          <div class="field-inline">Month <span id="monthLabelField">—</span></div>
+          <div class="field-inline">Year <span id="yearLabelField">—</span></div>
+        </div>
+      </div>
+
+      <div class="month-grid-wrap">
+        <table class="month-table" id="monthTable">
+          <thead>
+            <tr><th class="month-wk-col">WK</th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th><th>SUN</th></tr>
+          </thead>
+          <tbody id="monthBody"></tbody>
+        </table>
+      </div>
+      <div class="rest-hint" id="monthSyncHint" style="margin-bottom:6px;">Showing all-day events only.</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px;">
+        <div>
+          <div class="section-bar">Tasks</div>
+          <textarea class="win-textarea" id="monthTasks" style="min-height:110px;" placeholder="This month's tasks…"></textarea>
+        </div>
+        <div>
+          <div class="section-bar">Notes</div>
+          <textarea class="win-textarea" id="monthNotes" style="min-height:110px;" placeholder="Notes…"></textarea>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1236,6 +1306,51 @@ async function syncFromCalendar(dateIso, btnEl){
   }
 }
 
+/* ---------------- Month view: all-day events only ----------------
+   Same token/mechanism as the Day sync, but scoped to a whole calendar month
+   and filtered to all-day events only (Google represents these with a "date"
+   field instead of "dateTime"). Multi-day all-day events (e.g. a 3-day trip)
+   are expanded across every date they cover. Returns { 'YYYY-MM-DD': [titles] }. */
+async function syncMonthAllDayEvents(year, monthIndex){
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    const token = session && session.provider_token;
+    if(!token) throw new Error('No calendar access — sign out and back in to grant it');
+
+    const timeMin = new Date(year, monthIndex, 1).toISOString();
+    const timeMax = new Date(year, monthIndex+1, 0, 23, 59, 59).toISOString();
+    const params = new URLSearchParams({
+      timeMin, timeMax, singleEvents:'true', orderBy:'startTime', maxResults:'250'
+    });
+    const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?'+params.toString(), {
+      headers: { 'Authorization': 'Bearer '+token }
+    });
+    if(!res.ok){
+      if(res.status===401) throw new Error('Calendar access expired — sign out and back in to refresh it');
+      throw new Error('HTTP '+res.status);
+    }
+    const data = await res.json();
+    const map = {};
+    (data.items||[]).forEach(ev=>{
+      if(!(ev.start && ev.start.date)) return; // skip timed events — only want all-day
+      const startD = new Date(ev.start.date+'T00:00:00');
+      // Google's all-day end.date is EXCLUSIVE (the day after the last day)
+      const endD = (ev.end && ev.end.date) ? new Date(ev.end.date+'T00:00:00') : new Date(startD.getTime()+86400000);
+      for(let d=new Date(startD); d<endD; d.setDate(d.getDate()+1)){
+        const iso = isoDate(d);
+        if(!map[iso]) map[iso]=[];
+        map[iso].push(ev.summary || 'Untitled');
+      }
+    });
+    lastMonthSyncError = null;
+    return map;
+  }catch(e){
+    console.error('Month sync failed', e);
+    lastMonthSyncError = e.message || String(e);
+    return null;
+  }
+}
+
 /* ---------------- HubSpot task list sync (on-demand, read-only) ----------------
    Same mechanism again: pulls your real HubSpot tasks due on one specific date,
    including whether each is done. Doesn't write anything back — separate from
@@ -1360,6 +1475,33 @@ function quarterKeyFor(qNum, year){ return 'quarter-q'+qNum+'-'+year; }
 const TODAY_QNUM_YEAR = calendarQuarterOf(TODAY);
 const TODAY_QUARTER_KEY = quarterKeyFor(TODAY_QNUM_YEAR.qNum, TODAY_QNUM_YEAR.year);
 
+/* Month storage keys, standard ISO week numbers for the grid's WK column
+   (independent of the app's quarter-relative week numbering — this is the
+   plain calendar week-of-year, matching the paper template). */
+function monthKeyFor(year, monthIndex){ return 'month-'+year+'-'+String(monthIndex+1).padStart(2,'0'); }
+function getISOWeekNumber(d){
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = (date.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+  date.setUTCDate(date.getUTCDate() - dayNum + 3); // shift to this week's Thursday
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
+  return 1 + Math.round((date - firstThursday) / (7*86400000));
+}
+function buildMonthGrid(year, monthIndex){
+  const firstOfMonth = new Date(year, monthIndex, 1);
+  const lastOfMonth = new Date(year, monthIndex+1, 0);
+  let cursor = mondayOfWeek(firstOfMonth);
+  const weeks = [];
+  while(cursor <= lastOfMonth){
+    const wk = getISOWeekNumber(cursor);
+    const days = [];
+    for(let i=0;i<7;i++){ days.push(new Date(cursor)); cursor.setDate(cursor.getDate()+1); }
+    weeks.push({wk, days});
+  }
+  return weeks;
+}
+
 const CATS = [
   {id:'family',   label:'Family',   color:'var(--family)'},
   {id:'personal', label:'Personal', color:'var(--personal)'},
@@ -1432,6 +1574,10 @@ function loadQuarterData(qNum, year){
   return (qNum===3 && year===2026) ? defaultQuarter() : blankQuarterFor(qNum, year);
 }
 
+function defaultMonth(){
+  return { tasks:'', notes:'', allDayEvents:{} };
+}
+
 /* ---------------- Seed data pulled from Ashley's actual filled-in Week 1 pages ---------------- */
 /* No personal content is seeded into this public-facing code. All real data
    lives only in your private storage (Supabase), never in source code. */
@@ -1449,10 +1595,12 @@ function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||
 let selectedDate = stripTime(TODAY);   // drives the Day tab
 let weekViewDate = mondayOfWeek(TODAY); // drives the Week tab (a Monday)
 let quarterViewDate = stripTime(TODAY); // drives the Quarter tab (any date within the browsed quarter)
+let monthViewDate = stripTime(TODAY);   // drives the Month tab (any date within the browsed month)
 
-let dayData, weekData, mealsData, quarterData, browsedQuarterData, dayMealsData;
+let dayData, weekData, mealsData, quarterData, browsedQuarterData, dayMealsData, monthData;
 let weekDayTypes = []; // [{iso, dayType}] for the 7 days of weekViewDate — single source of truth is the day- record
-let currentDayKey, currentWeekKey, currentMealsKey, currentQuarterKey, dayMealsKey;
+let currentDayKey, currentWeekKey, currentMealsKey, currentQuarterKey, dayMealsKey, currentMonthKey;
+let lastMonthSyncError = null;
 
 /* In-memory cache of day- records, so we don't re-hit storage for dates we've
    already fetched. dayCache[iso] === undefined -> never checked.
@@ -1524,6 +1672,7 @@ const saveBrowsedQuarterDebounced = debounce(()=>{
   // if she's editing the actual current quarter, keep the pulse card's copy in sync too
   if(currentQuarterKey === TODAY_QUARTER_KEY){ quarterData = browsedQuarterData; renderPulse(); }
 }, 500);
+const saveMonthDebounced = debounce(()=>sset(currentMonthKey, monthData), 500);
 
 /* ---------------- Init ---------------- */
 async function init(){
@@ -1533,6 +1682,7 @@ async function init(){
 
   await loadDay();
   await loadWeek();
+  await loadMonthTab();
   await loadQuarterTab();
 
   document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -1556,6 +1706,10 @@ async function init(){
   document.getElementById('weekPrev').onclick=()=>changeWeek(-1);
   document.getElementById('weekNext').onclick=()=>changeWeek(1);
   document.getElementById('jumpThisWeek').onclick=()=>{ weekViewDate=mondayOfWeek(TODAY); loadWeek(); };
+
+  document.getElementById('monthPrev').onclick=()=>changeMonth(-1);
+  document.getElementById('monthNext').onclick=()=>changeMonth(1);
+  document.getElementById('jumpThisMonth').onclick=()=>{ monthViewDate=stripTime(TODAY); loadMonthTab(); };
 
   document.getElementById('quarterPrev').onclick=()=>changeQuarter(-1);
   document.getElementById('quarterNext').onclick=()=>changeQuarter(1);
@@ -1599,6 +1753,13 @@ async function changeQuarter(delta){
   while(newQNum < 1){ newQNum += 4; newYear -= 1; }
   quarterViewDate = new Date(newYear, (newQNum-1)*3, 1);
   await loadQuarterTab();
+}
+async function changeMonth(delta){
+  const d = new Date(monthViewDate);
+  d.setDate(1); // avoid month-length rollover weirdness (e.g. Jan 31 + 1 month)
+  d.setMonth(d.getMonth()+delta);
+  monthViewDate = stripTime(d);
+  await loadMonthTab();
 }
 
 async function loadDay(){
@@ -1665,6 +1826,22 @@ async function loadQuarterTab(){
 
   await rescanBrowsedQuarterCounts();
   renderQuarterTab();
+}
+async function loadMonthTab(){
+  const year = monthViewDate.getFullYear(), monthIndex = monthViewDate.getMonth();
+  currentMonthKey = monthKeyFor(year, monthIndex);
+  monthData = (await sget(currentMonthKey)) || defaultMonth();
+  renderMonthTab();
+  autoSyncMonth(year, monthIndex, currentMonthKey);
+}
+async function autoSyncMonth(year, monthIndex, keyAtCallTime){
+  const map = await syncMonthAllDayEvents(year, monthIndex);
+  if(currentMonthKey !== keyAtCallTime) return; // navigated away before this resolved
+  if(map !== null){
+    monthData.allDayEvents = map;
+    saveMonthDebounced();
+  }
+  renderMonthTab();
 }
 
 /* ---------------- Day type: single source of truth is the day- record ----------------
@@ -2236,6 +2413,66 @@ function renderMeals(){
   document.getElementById('addShopBtn').onclick=()=>{
     mealsData.shopping.push({text:'',done:false}); renderMeals(); saveMealsDebounced();
   };
+}
+
+/* ================= MONTH VIEW ================= */
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function renderMonthTab(){
+  const year = monthViewDate.getFullYear(), monthIndex = monthViewDate.getMonth();
+  document.getElementById('navMonthLabel').textContent = MONTH_NAMES[monthIndex] + ' ' + year;
+  document.getElementById('monthLabelField').textContent = MONTH_NAMES[monthIndex];
+  document.getElementById('yearLabelField').textContent = String(year);
+
+  const hintEl = document.getElementById('monthSyncHint');
+  hintEl.textContent = lastMonthSyncError
+    ? 'Couldn\'t load calendar: ' + lastMonthSyncError
+    : 'Showing all-day events only.';
+  hintEl.style.color = lastMonthSyncError ? 'var(--personal)' : 'var(--muted)';
+
+  const weeks = buildMonthGrid(year, monthIndex);
+  const todayIso = isoDate(TODAY);
+  const body = document.getElementById('monthBody');
+  body.innerHTML = '';
+
+  weeks.forEach(week=>{
+    const tr = document.createElement('tr');
+    const wkTd = document.createElement('td');
+    wkTd.className = 'wk-cell';
+    wkTd.textContent = week.wk;
+    tr.appendChild(wkTd);
+
+    week.days.forEach(day=>{
+      const td = document.createElement('td');
+      const inMonth = day.getMonth() === monthIndex;
+      if(!inMonth){ td.className = 'out-of-month'; }
+      else{
+        const iso = isoDate(day);
+        const numEl = document.createElement('div');
+        numEl.className = 'month-day-num' + (iso===todayIso ? ' is-today' : '');
+        numEl.textContent = day.getDate();
+        td.appendChild(numEl);
+
+        const events = (monthData.allDayEvents && monthData.allDayEvents[iso]) || [];
+        events.forEach(title=>{
+          const evEl = document.createElement('div');
+          evEl.className = 'month-event';
+          evEl.textContent = title;
+          td.appendChild(evEl);
+        });
+      }
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+
+  const tasksEl = document.getElementById('monthTasks');
+  if(document.activeElement !== tasksEl) tasksEl.value = monthData.tasks || '';
+  tasksEl.oninput = ()=>{ monthData.tasks = tasksEl.value; saveMonthDebounced(); };
+
+  const notesEl = document.getElementById('monthNotes');
+  if(document.activeElement !== notesEl) notesEl.value = monthData.notes || '';
+  notesEl.oninput = ()=>{ monthData.notes = notesEl.value; saveMonthDebounced(); };
 }
 
 /* ================= QUARTER VIEW ================= */
