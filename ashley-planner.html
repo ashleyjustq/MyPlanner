@@ -234,19 +234,19 @@
   /* Synced Google Calendar timeline (read-only) */
   .cal-timeline-wrap{display:flex;margin-bottom:14px;}
   .cal-hour-labels{width:34px;flex-shrink:0;}
-  .cal-hour-labels .h{font-size:11px;color:var(--muted);height:26px;box-sizing:border-box;}
+  .cal-hour-labels .h{font-size:11px;color:var(--muted);height:44px;box-sizing:border-box;}
   .cal-timeline{
-    position:relative;flex:1;height:416px;
-    background:repeating-linear-gradient(to bottom, #F0EFEC 0, #F0EFEC 1px, transparent 1px, transparent 26px);
+    position:relative;flex:1;height:704px;
+    background:repeating-linear-gradient(to bottom, #F0EFEC 0, #F0EFEC 1px, transparent 1px, transparent 44px);
     border:1px solid var(--border);border-radius:6px;background-color:#FCFCFB;
   }
   .cal-event-block{
     position:absolute;left:2px;right:2px;background:var(--work);color:#fff;
-    border-radius:5px;padding:1px 6px;overflow:visible;font-size:10px;line-height:1.2;
+    border-radius:6px;padding:4px 8px;overflow:visible;font-size:14px;line-height:1.3;
     box-shadow:0 1px 2px rgba(0,0,0,.1);
   }
   .cal-event-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
-  .cal-event-time{opacity:.85;font-size:9px;white-space:nowrap;}
+  .cal-event-time{opacity:.85;font-size:11.5px;white-space:nowrap;}
   .sync-btn{
     border:1px solid var(--border);background:#fff;color:var(--work);
     font-family:inherit;font-size:11px;border-radius:6px;padding:4px 10px;cursor:pointer;
@@ -2038,8 +2038,7 @@ function formatTime12(hhmm){
 }
 
 /* Renders synced Google Calendar events (dayData.calendarEvents) as a read-only
-   proportional timeline, 6am–10pm, matching the hour-grid's row height (26px/hr)
-   so the two stay visually aligned. */
+   proportional timeline, 6am–10pm, at 44px/hour — sized for task-size text. */
 function renderCalendarTimeline(){
   const labelsEl = document.getElementById('calHourLabels');
   labelsEl.innerHTML='';
@@ -2065,7 +2064,7 @@ function renderCalendarTimeline(){
   }
 
   const dayStartMin = 6*60;
-  const totalMin = HOURS.length*60; // 16 hours -> 416px, matches hour-grid row height
+  const totalMin = HOURS.length*60; // 16 hours, 6am–10pm
 
   events.forEach((ev,idx)=>{
     const parseHM = (s)=>{ const parts=String(s||'0:0').split(':'); return (parseInt(parts[0],10)||0)*60+(parseInt(parts[1],10)||0); };
@@ -2077,9 +2076,10 @@ function renderCalendarTimeline(){
     const clippedEnd = Math.min(endMin, dayStartMin+totalMin);
     if(clippedEnd<=clippedStart) return; // entirely outside the visible 6am–10pm window
 
-    const topPx = ((clippedStart-dayStartMin)/60)*26;
-    const rawHeightPx = ((clippedEnd-clippedStart)/60)*26;
-    const GAP_PX = 4; // breathing room between back-to-back events
+    const PX_PER_HOUR = 44;
+    const topPx = ((clippedStart-dayStartMin)/60)*PX_PER_HOUR;
+    const rawHeightPx = ((clippedEnd-clippedStart)/60)*PX_PER_HOUR;
+    const GAP_PX = 5; // breathing room between back-to-back events
     // Never let the block exceed its own real time slot — a min-height floor
     // that's bigger than a short event's actual duration is what was causing
     // gaps to disappear (or events to overlap) for short back-to-back items.
@@ -2096,7 +2096,7 @@ function renderCalendarTimeline(){
     // on top of whatever's positioned right below it, rather than being hidden.
     block.style.zIndex = String(1000 - idx);
     block.innerHTML = '<div class="cal-event-title">'+escapeHtml(ev.title||'Untitled')+'</div>'
-      + (heightPx>18 ? '<div class="cal-event-time">'+escapeHtml(timeLabel)+'</div>' : '');
+      + (heightPx>30 ? '<div class="cal-event-time">'+escapeHtml(timeLabel)+'</div>' : '');
     container.appendChild(block);
   });
 }
