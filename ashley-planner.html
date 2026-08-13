@@ -1266,40 +1266,22 @@ async function importAllData(file){
 }
 
 /* ---------------- HubSpot push (on-demand, per-task) ----------------
-   Runs through Anthropic's API with the HubSpot MCP connector attached.
-   This is deliberately NOT used for storage/sync — only for the person
-   tapping "→ HubSpot" on a specific task they want tracked there too. */
+   Calls the same Supabase Edge Function as the read-sync/write-back, using
+   its "create" action. Token stays server-side; the browser never sees it. */
 const HUBSPOT_OWNER_ID = '535583785';
 const HUBSPOT_COMPANY_ID = '55033489750';
 
 async function pushTaskToHubSpot(taskText, dueIso, btnEl){
   if(!taskText || !taskText.trim()){ return; }
-  const originalHtml = btnEl.innerHTML;
   btnEl.disabled = true;
   btnEl.textContent = 'Sending…';
   try{
-    const prompt = 'Create exactly one HubSpot task and nothing else. Do not search, do not look up other records, just create this task with these exact properties: '
-      + 'hs_task_subject="' + taskText.replace(/"/g,'\\"') + '", '
-      + 'hs_task_status="NOT_STARTED", hs_task_priority="MEDIUM", '
-      + 'hs_timestamp="' + dueIso + 'T09:00:00-05:00", '
-      + 'hubspot_owner_id="' + HUBSPOT_OWNER_ID + '". '
-      + 'Associate the task with company record ID ' + HUBSPOT_COMPANY_ID + '. '
-      + 'Reply with a short confirmation once created.';
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{ role:'user', content: prompt }],
-        mcp_servers: [{ type:'url', url:'https://mcp.hubspot.com/anthropic', name:'hubspot-mcp' }]
-      })
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'create', subject:taskText, dueIso }
     });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    const toolResult = (data.content||[]).find(b=>b.type==='mcp_tool_result');
-    if(!toolResult) throw new Error('No confirmed tool call in response');
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    if(!data || !data.success) throw new Error('Unexpected response');
 
     btnEl.textContent = '✓ Sent';
     btnEl.classList.add('hb-sent');
