@@ -849,6 +849,7 @@
 
       <div class="section-bar">The Quarter's Multipliers <span class="sub">3–5 achievements that move everything</span></div>
       <div id="multiplierList"></div>
+      <div class="add-row"><button class="add-btn" id="addMultiplierBtn">+ add multiplier</button></div>
 
       <div class="section-bar teal">Linger <span class="sub">what is God saying this quarter?</span></div>
       <textarea class="win-textarea" id="quarterLinger" style="min-height:150px;"></textarea>
@@ -2281,8 +2282,14 @@ function renderQuarterTab(){
     const w=document.createElement('input'); w.className='mwhy'; w.type='text'; w.value=m.why; w.placeholder='Why it matters…';
     w.oninput=()=>{ m.why=w.value; saveBrowsedQuarterDebounced(); };
     body.appendChild(g); body.appendChild(w);
-    row.appendChild(num); row.appendChild(body); ml.appendChild(row);
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ browsedQuarterData.multipliers.splice(i,1); renderQuarterTab(); saveBrowsedQuarterDebounced(); };
+    row.appendChild(num); row.appendChild(body); row.appendChild(del); ml.appendChild(row);
   });
+  document.getElementById('addMultiplierBtn').onclick=()=>{
+    browsedQuarterData.multipliers.push({goal:'',why:''});
+    renderQuarterTab(); saveBrowsedQuarterDebounced();
+  };
 
   const qlEl=document.getElementById('quarterLinger');
   if(document.activeElement!==qlEl) qlEl.value = browsedQuarterData.linger;
