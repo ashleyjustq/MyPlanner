@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ashley's Quarterly Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#3E4852;
+    --navy-light:#5A6673;
+    --teal:#32646B;
+    --maroon:#4A2A39;
+    --family:#5EC6A5;
+    --personal:#DD3A4F;
+    --work:#2E89C0;
+    --church:#5B4D9A;
+    --food:#E87268;
+    --paper:#FDFDFC;
+    --ink:#2B2E33;
+    --muted:#8A8F96;
+    --border:#E3E3E0;
+    --accent-pink:#E85D8A;
+    --accent-yellow:#F0B23A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Source Sans 3', -apple-system, sans-serif;
+    background:#F0EFEB;
+    color:var(--ink);
+    padding:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:900px;margin:0 auto;padding:14px 14px 60px;}
+
+  /* ---- Pulse / morning brief strip ---- */
+  .pulse{
+    background:linear-gradient(135deg,var(--navy),var(--navy-light));
+    border-radius:14px;
+    padding:16px 18px;
+    color:#fff;
+    margin-bottom:12px;
+    position:relative;
+    overflow:hidden;
+  }
+  .pulse-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .pulse-greeting{font-size:20px;font-weight:600;}
+  .pulse-date{font-size:12.5px;opacity:.8;margin-top:2px;}
+  .pulse-week-badge{
+    background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.28);
+    border-radius:20px;
+    padding:5px 12px;
+    font-size:12px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .pulse-linger{
+    margin-top:12px;
+    font-style:italic;
+    font-size:14px;
+    line-height:1.45;
+    border-left:3px solid var(--accent-yellow);
+    padding-left:10px;
+    opacity:.95;
+  }
+  .pulse-multiplier{
+    margin-top:8px;
+    font-size:12.5px;
+    opacity:.9;
+    transition:opacity .5s ease;
+    min-height:16px;
+  }
+  .pulse-multiplier b{color:var(--accent-yellow);font-weight:600;}
+  .pulse-bars{display:flex;gap:14px;margin-top:14px;flex-wrap:wrap;}
+  .pulse-bar-item{flex:1;min-width:110px;}
+  .pulse-bar-label{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;opacity:.75;margin-bottom:4px;display:flex;justify-content:space-between;}
+  .pulse-bar-track{height:6px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden;}
+  .pulse-bar-fill{height:100%;border-radius:4px;background:var(--accent-yellow);transition:width .4s ease;}
+
+  /* ---- Tabs ---- */
+  .tabs{display:flex;gap:6px;margin-bottom:12px;}
+  .tab-btn{
+    flex:1;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 8px;
+    font-family:inherit;
+    font-size:13.5px;
+    font-weight:600;
+    color:var(--muted);
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .tab-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+  .tab-btn:hover:not(.active){border-color:var(--navy-light);color:var(--navy);}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  /* ---- Card / section ---- */
+  .card{
+    background:var(--paper);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:18px 18px 20px;
+    margin-bottom:12px;
+  }
+  .card-title{font-size:22px;font-weight:600;color:var(--ink);}
+  .card-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .badge{
+    background:var(--navy);
+    color:#fff;
+    border-radius:20px;
+    padding:4px 12px;
+    font-size:12px;
+    font-weight:600;
+  }
+  .field-inline{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+  .field-inline input{
+    border:none;border-bottom:1.5px solid var(--border);
+    font-family:inherit;font-size:14px;color:var(--ink);
+    padding:2px 4px;background:transparent;width:110px;
+  }
+  .field-inline input:focus{outline:none;border-bottom-color:var(--navy);}
+
+  .section-bar{
+    background:var(--navy);
+    color:#fff;
+    font-size:12.5px;
+    font-weight:600;
+    letter-spacing:.02em;
+    text-transform:uppercase;
+    padding:8px 12px;
+    border-radius:8px;
+    margin:16px 0 10px;
+  }
+  .section-bar.teal{background:var(--teal);}
+  .section-bar.maroon{background:var(--maroon);}
+  .section-bar span.sub{text-transform:none;font-weight:400;opacity:.85;font-size:11.5px;margin-left:8px;}
+
+  /* Color code legend */
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink);margin:2px 0 14px;align-items:center;}
+  .legend b{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.03em;margin-right:2px;}
+  .dot{width:13px;height:13px;border-radius:4px;display:inline-block;margin-right:5px;vertical-align:-2px;}
+  .legend-item{display:flex;align-items:center;}
+
+  /* Rest days boxes */
+  .rest-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}
+  .rest-box{border:1.5px solid var(--border);border-radius:10px;padding:12px;}
+  .rest-box .label{font-weight:600;font-size:13.5px;}
+  .rest-box .desc{font-size:11px;color:var(--muted);margin-bottom:8px;}
+  .rest-box .tgt-row{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--muted);margin-top:4px;}
+  .rest-box input{width:44px;border:none;border-bottom:1.5px solid var(--border);font-family:inherit;font-size:15px;font-weight:600;text-align:center;background:transparent;}
+  .rest-box input:focus{outline:none;border-bottom-color:var(--navy);}
+  .rest-box.free .label{color:#5EA07A;}
+  .rest-box.buffer .label{color:#2E89C0;}
+  .rest-box.focus .label{color:var(--personal);}
+  .rest-hint{font-size:11px;color:var(--muted);font-style:italic;margin-top:2px;}
+
+  /* Three column lists */
+  .col3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:640px){.col3{grid-template-columns:1fr;} .rest-grid{grid-template-columns:1fr;} .col2{grid-template-columns:1fr !important;}}
+  .col-head{font-size:12.5px;font-weight:700;margin-bottom:2px;}
+  .col-head.pink{color:var(--accent-pink);}
+  .col-head.teal2{color:var(--teal);}
+  .col-head.navy2{color:var(--navy);}
+  .col-sub{font-size:10.5px;color:var(--muted);margin-bottom:8px;}
+  .item-list{list-style:none;margin:0;padding:0;}
+  .item-list li{
+    display:flex;align-items:center;gap:6px;
+    border-bottom:1px solid var(--border);
+    padding:5px 0;
+  }
+  .item-list input[type=text]{
+    border:none;background:transparent;font-family:inherit;font-size:13px;flex:1;color:var(--ink);
+  }
+  .item-list input[type=text]:focus{outline:none;}
+  .del-btn{border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px 4px;}
+  .del-btn:hover{color:var(--personal);}
+  .add-row{display:flex;align-items:center;gap:6px;margin-top:4px;}
+  .add-btn{
+    border:1.5px dashed var(--border);
+    background:none;border-radius:8px;
+    color:var(--muted);font-family:inherit;font-size:12px;
+    padding:6px 10px;cursor:pointer;width:100%;text-align:left;
+  }
+  .add-btn:hover{border-color:var(--navy);color:var(--navy);}
+
+  /* Multipliers */
+  .mult-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+  .mult-num{
+    width:22px;height:22px;border-radius:50%;background:var(--personal);color:#fff;
+    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;
+  }
+  .mult-body{flex:1;display:flex;flex-direction:column;gap:4px;}
+  .mult-body input{border:none;background:transparent;font-family:inherit;color:var(--ink);font-size:13.5px;}
+  .mult-body input:focus{outline:none;}
+  .mult-body .mgoal{font-weight:600;}
+  .mult-body .mwhy{font-size:12px;color:var(--teal);font-style:italic;}
+  .mult-body .mwhy::before{content:"→ ";}
+
+  /* Linger */
+  .linger-list textarea{
+    width:100%;border:none;background:transparent;font-family:'Source Sans 3',sans-serif;
+    font-style:italic;font-size:14.5px;color:var(--ink);resize:vertical;line-height:1.6;
+    border-bottom:1px dashed var(--border);padding:8px 0;min-height:90px;
+  }
+  .linger-list textarea:focus{outline:none;border-bottom-color:var(--teal);}
+
+  /* Today's shape (hour grid) */
+  .shape-hint{font-size:11px;color:var(--muted);font-style:italic;margin-bottom:8px;}
+  .hour-grid{display:flex;flex-direction:column;}
+
+  /* Synced Google Calendar timeline (read-only) */
+  .cal-timeline-wrap{display:flex;margin-bottom:14px;}
+  .cal-hour-labels{width:34px;flex-shrink:0;}
+  .cal-hour-labels .h{font-size:11px;color:var(--muted);height:26px;box-sizing:border-box;}
+  .cal-timeline{
+    position:relative;flex:1;height:416px;
+    background:repeating-linear-gradient(to bottom, #F0EFEC 0, #F0EFEC 1px, transparent 1px, transparent 26px);
+    border:1px solid var(--border);border-radius:6px;background-color:#FCFCFB;
+  }
+  .cal-event-block{
+    position:absolute;left:2px;right:2px;background:var(--work);color:#fff;
+    border-radius:5px;padding:1px 6px;overflow:visible;font-size:10px;line-height:1.2;
+    box-shadow:0 1px 2px rgba(0,0,0,.1);
+  }
+  .cal-event-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .cal-event-time{opacity:.85;font-size:9px;white-space:nowrap;}
+  .sync-btn{
+    border:1px solid var(--border);background:#fff;color:var(--work);
+    font-family:inherit;font-size:11px;border-radius:6px;padding:4px 10px;cursor:pointer;
+  }
+  .sync-btn:hover:not(:disabled){border-color:var(--work);background:#F0F7FC;}
+  .sync-btn:disabled{opacity:.7;cursor:default;}
+  .hour-row{display:flex;align-items:stretch;min-height:26px;border-bottom:1px solid #EFEFEC;}
+  .hour-label{width:34px;font-size:11px;color:var(--muted);padding-top:4px;flex-shrink:0;}
+  .hour-cell{flex:1;border-radius:5px;margin:2px 0;cursor:pointer;transition:background .1s ease;}
+  .hour-cell:hover{outline:2px solid var(--navy-light);}
+
+  /* Big 3 */
+  .big3-item{
+    border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px;margin-bottom:8px;
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .chk{
+    width:19px;height:19px;flex-shrink:0;border-radius:5px;border:2px solid var(--navy-light);
+    cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:1px;
+    transition:all .12s ease;background:#fff;
+  }
+  .chk.checked{background:var(--family);border-color:var(--family);}
+  .chk.checked::after{content:"✓";color:#fff;font-size:12px;font-weight:700;}
+  .chk.big{width:22px;height:22px;}
+  .big3-body{flex:1;}
+  .big3-body input[type=text]{
+    width:100%;border:none;background:transparent;font-family:inherit;font-size:14.5px;color:var(--ink);
+  }
+  .big3-body input[type=text]:focus{outline:none;}
+  .big3-body input[type=text].done{text-decoration:line-through;color:var(--muted);}
+  .block-row{display:flex;align-items:center;gap:5px;margin-top:3px;}
+  .block-row span{font-size:10.5px;color:var(--muted);}
+  .block-row input{border:none;border-bottom:1px solid var(--border);background:transparent;font-family:inherit;font-size:11px;width:60px;color:var(--muted);}
+  .block-row input:focus{outline:none;border-bottom-color:var(--navy);}
+
+  .task-row{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid #EFEFEC;}
+  .task-row input[type=text]{flex:1;border:none;background:transparent;font-family:inherit;font-size:13.5px;color:var(--ink);}
+  .task-row input[type=text]:focus{outline:none;}
+  .task-row input[type=text].done{text-decoration:line-through;color:var(--muted);}
+
+  /* Today toggles / water */
+  .today-toggles{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px;}
+  .toggle-item{display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;}
+  .water-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .water-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;}
+  .drop{
+    width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(45deg);
+    border:2px solid #2E89C0;background:#fff;cursor:pointer;transition:background .12s ease;
+  }
+  .drop.filled{background:#2E89C0;}
+
+  .win-textarea{
+    width:100%;min-height:70px;border:none;background:transparent;
+    font-family:inherit;font-size:14px;color:var(--ink);resize:vertical;line-height:1.6;
+    border-bottom:1px dashed var(--border);padding-bottom:8px;
+  }
+  .win-textarea:focus{outline:none;border-bottom-color:var(--maroon);}
+
+  /* Week day type pills */
+  .week-days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:4px;}
+  .week-day-col{border:1px solid var(--border);border-radius:10px;padding:8px 6px;text-align:center;}
+  .week-day-col .dname{font-size:11.5px;font-weight:700;margin-bottom:6px;}
+  .type-pills{display:flex;flex-direction:column;gap:3px;}
+  .type-pill{
+    font-size:9.5px;border:1px solid var(--border);border-radius:6px;padding:3px 2px;cursor:pointer;color:var(--muted);
+  }
+  .type-pill.sel-free{background:#5EA07A;color:#fff;border-color:#5EA07A;}
+  .type-pill.sel-focus{background:var(--personal);color:#fff;border-color:var(--personal);}
+  .type-pill.sel-buffer{background:#2E89C0;color:#fff;border-color:#2E89C0;}
+
+  .moves-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #EFEFEC;}
+  .moves-row .cat-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
+  .moves-row input{flex:1;border:none;background:transparent;font-family:inherit;font-size:13px;color:var(--ink);}
+  .moves-row input:focus{outline:none;}
+  .moves-row .catname{width:64px;font-size:11.5px;color:var(--muted);flex-shrink:0;}
+
+  .farm-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .farm-table th{text-align:left;font-size:10.5px;color:var(--muted);text-transform:uppercase;padding:4px 6px;font-weight:600;}
+  .farm-table td{padding:4px 6px;border-bottom:1px solid #EFEFEC;}
+  .farm-table input[type=text]{width:100%;border:none;background:transparent;font-family:inherit;font-size:13px;}
+  .farm-table input[type=text]:focus{outline:none;}
+
+  .saved-note{
+    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+    background:var(--navy);color:#fff;font-size:12px;padding:7px 16px;border-radius:20px;
+    opacity:0;transition:opacity .3s ease;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.2);
+  }
+  .saved-note.show{opacity:1;}
+
+  .storage-error{
+    position:fixed;top:0;left:0;right:0;z-index:9999;
+    background:#B3261E;color:#fff;font-size:12.5px;text-align:center;
+    padding:8px 14px;opacity:0;transform:translateY(-100%);
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .storage-error.show{opacity:1;transform:translateY(0);}
+
+  .empty-hint{font-size:12px;color:var(--muted);font-style:italic;padding:6px 0;}
+
+  .backup-row{display:flex;gap:8px;justify-content:flex-end;margin-bottom:10px;}
+  .backup-btn{
+    border:1px solid var(--border);background:#fff;color:var(--muted);
+    font-family:inherit;font-size:11px;border-radius:6px;padding:5px 10px;
+    cursor:pointer;display:inline-block;
+  }
+  .backup-btn:hover{border-color:var(--navy);color:var(--navy);}
+
+  /* Nav bar for date/week navigation */
+  .navbar{
+    display:flex;align-items:center;justify-content:space-between;
+    background:#fff;border:1px solid var(--border);border-radius:12px;
+    padding:8px 10px;margin-bottom:10px;
+  }
+  .nav-arrow{
+    width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:#fff;
+    font-size:18px;color:var(--navy);cursor:pointer;flex-shrink:0;line-height:1;
+  }
+  .nav-arrow:hover{background:var(--navy);color:#fff;border-color:var(--navy);}
+  .navbar-center{text-align:center;flex:1;}
+  .navbar-center>div{font-weight:600;font-size:14.5px;color:var(--ink);}
+  .jump-btn{
+    border:none;background:none;color:var(--work);font-family:inherit;font-size:11px;
+    cursor:pointer;text-decoration:underline;padding:2px;margin-top:1px;
+  }
+  .date-picker-input{
+    border:1px solid var(--border);border-radius:6px;background:#fff;
+    font-family:inherit;font-size:11.5px;color:var(--ink);padding:3px 6px;
+  }
+  .date-picker-input:focus{outline:none;border-color:var(--navy);}
+
+  /* HubSpot push button */
+  .hb-btn{
+    border:1px solid var(--border);background:#fff;color:var(--work);
+    font-family:inherit;font-size:10.5px;border-radius:6px;padding:3px 8px;
+    cursor:pointer;white-space:nowrap;flex-shrink:0;
+  }
+  .hb-btn:hover:not(:disabled){border-color:var(--work);background:#F0F7FC;}
+  .hb-btn.small{padding:2px 6px;font-size:10px;}
+  .hb-btn.hb-sent{color:var(--family);border-color:var(--family);background:#F1FAF6;cursor:default;}
+  .hb-btn:disabled{opacity:.7;cursor:default;}
+
+  /* Weekend page */
+  .col-check-list{list-style:none;margin:0;padding:0;}
+  .col-check-list li{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #EFEFEC;}
+  .col-check-list input[type=text]{flex:1;border:none;background:transparent;font-family:inherit;font-size:13px;color:var(--ink);}
+  .col-check-list input[type=text]:focus{outline:none;}
+  .plain-list{list-style:none;margin:0;padding:0;}
+  .plain-list li{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #EFEFEC;}
+  .plain-list input[type=text]{flex:1;border:none;background:transparent;font-family:inherit;font-size:13px;color:var(--ink);}
+  .plain-list input[type=text]:focus{outline:none;}
+
+  /* Meal table */
+  .meal-grid-wrap{overflow-x:auto;margin-bottom:6px;}
+  .meal-table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:640px;}
+  .meal-table th{
+    background:var(--navy);color:#fff;font-size:10px;text-transform:uppercase;
+    padding:6px 4px;text-align:center;letter-spacing:.03em;
+  }
+  .meal-table td{border:1px solid var(--border);padding:3px;vertical-align:top;}
+  .meal-table td.rowlabel{
+    background:#F5F4F1;font-weight:700;font-size:9.5px;text-transform:uppercase;
+    color:var(--muted);text-align:center;writing-mode:vertical-rl;transform:rotate(180deg);width:20px;
+  }
+  .meal-table textarea{
+    width:100%;min-width:78px;border:none;background:transparent;font-family:inherit;
+    font-size:11.5px;resize:vertical;min-height:44px;line-height:1.35;color:var(--ink);
+  }
+  .meal-table textarea:focus{outline:none;background:#FBFBF9;}
+
+  /* Day view's single-day meal table (mirrors the week table, one column) */
+  .day-meal-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .day-meal-table td{border:1px solid var(--border);padding:5px 7px;vertical-align:top;}
+  .day-meal-table td.day-meal-label{
+    background:#F5F4F1;font-weight:700;font-size:10.5px;text-transform:uppercase;
+    color:var(--muted);width:70px;vertical-align:middle;
+  }
+  .day-meal-table textarea{
+    width:100%;border:none;background:transparent;font-family:inherit;
+    font-size:12.5px;resize:vertical;min-height:34px;line-height:1.35;color:var(--ink);
+  }
+  .day-meal-table textarea:focus{outline:none;background:#FBFBF9;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- MORNING PULSE -->
+  <div class="pulse" id="pulseCard">
+    <div class="pulse-top">
+      <div>
+        <div class="pulse-greeting" id="greeting">Good morning, Ashley</div>
+        <div class="pulse-date" id="todayDate"></div>
+      </div>
+      <div class="pulse-week-badge" id="weekBadge">Week 1 / 13</div>
+    </div>
+    <div class="pulse-linger" id="pulseLinger">"…"</div>
+    <div class="pulse-multiplier" id="pulseMultiplier"></div>
+    <div class="pulse-bars" id="pulseBars"></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" data-view="today">Day</button>
+    <button class="tab-btn" data-view="week">Week</button>
+    <button class="tab-btn" data-view="quarter">Quarter</button>
+  </div>
+
+  <div class="backup-row">
+    <button class="backup-btn" id="exportBtn">⭳ Export backup</button>
+    <label class="backup-btn" for="importFile">⭱ Import backup</label>
+    <input type="file" id="importFile" accept="application/json" style="display:none;">
+  </div>
+
+  <!-- ============ DAY VIEW ============ -->
+  <div class="view active" id="view-today">
+
+    <div class="navbar">
+      <button class="nav-arrow" id="dayPrev">‹</button>
+      <div class="navbar-center">
+        <div id="navDayLabel">—</div>
+        <div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:4px;">
+          <input type="date" id="dayPicker" class="date-picker-input">
+          <button class="jump-btn" id="jumpToday">Jump to today</button>
+        </div>
+      </div>
+      <button class="nav-arrow" id="dayNext">›</button>
+    </div>
+
+    <!-- Weekday template -->
+    <div class="card" id="weekdayCard">
+      <div class="card-title-row">
+        <div>
+          <div class="card-title" id="todayDayName">Tuesday</div>
+          <div class="field-inline" style="margin-top:4px;">Week <span id="todayWeekNum">—</span></div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="type-pill" data-daytype="free" id="pill-free">free</button>
+          <button class="type-pill" data-daytype="focus" id="pill-focus">focus</button>
+          <button class="type-pill" data-daytype="buffer" id="pill-buffer">buffer</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <b>Color code</b>
+        <span class="legend-item"><span class="dot" style="background:var(--family)"></span>family</span>
+        <span class="legend-item"><span class="dot" style="background:var(--personal)"></span>personal</span>
+        <span class="legend-item"><span class="dot" style="background:var(--work)"></span>work</span>
+        <span class="legend-item"><span class="dot" style="background:var(--church)"></span>church</span>
+        <span class="legend-item"><span class="dot" style="background:var(--food)"></span>home</span>
+      </div>
+
+      <div class="col2" style="display:grid;grid-template-columns:1fr 1.3fr;gap:16px;">
+        <div>
+          <div class="section-bar" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Today's Shape</span>
+            <button class="sync-btn" id="syncCalendarBtn">↻ Sync</button>
+          </div>
+          <div class="cal-timeline-wrap">
+            <div class="cal-hour-labels" id="calHourLabels"></div>
+            <div class="cal-timeline" id="calendarTimeline"></div>
+          </div>
+
+          <div class="section-bar">Today's Meals</div>
+          <div class="water-row" style="margin-bottom:10px;">
+            <span class="water-label">Water</span>
+            <div id="waterDrops" style="display:flex;gap:6px;"></div>
+            <span style="font-size:11.5px;color:var(--muted);" id="waterCount">0 / 8</span>
+          </div>
+          <div id="dayMealsTable"></div>
+        </div>
+
+        <div>
+          <div class="section-bar" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>HubSpot Tasks</span>
+            <button class="sync-btn" id="syncHubspotBtn">↻ Sync</button>
+          </div>
+          <div id="hubspotTasksList"></div>
+
+          <div class="section-bar">Other Tasks</div>
+          <div id="otherTasksList"></div>
+          <div class="add-row">
+            <button class="add-btn" id="addTaskBtn">+ add task</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-bar">Today</div>
+      <div class="today-toggles">
+        <div class="toggle-item" id="toggle-workout"><div class="chk" id="chk-workout"></div> workout</div>
+        <div class="toggle-item" id="toggle-prayer"><div class="chk" id="chk-prayer"></div> prayer + bible</div>
+      </div>
+
+      <div class="section-bar maroon">Daily Win</div>
+      <textarea class="win-textarea" id="dailyWin" placeholder="One line. What actually happened today?"></textarea>
+    </div>
+
+    <!-- Weekend template -->
+    <div class="card" id="weekendCard" style="display:none;">
+      <div class="card-title-row" style="margin-bottom:10px;">
+        <div class="card-title" id="weekendDayName" style="font-size:20px;">Saturday</div>
+        <div style="display:flex;gap:6px;">
+          <button class="type-pill" data-daytype="free" id="pill-free-wk">free</button>
+          <button class="type-pill" data-daytype="focus" id="pill-focus-wk">focus</button>
+          <button class="type-pill" data-daytype="buffer" id="pill-buffer-wk">buffer</button>
+        </div>
+      </div>
+      <div class="field-inline" style="margin:6px 0 12px;">Today's intention
+        <input type="text" id="weekendIntention" style="width:70%;" placeholder="What's the intention for this day?">
+      </div>
+
+      <div class="col2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="col-head navy2">A few things</div>
+          <div id="fewThingsList"></div>
+          <div class="add-row"><button class="add-btn" id="addFewThingBtn">+ add</button></div>
+        </div>
+        <div>
+          <div class="col-head navy2">Rest &amp; restore</div>
+          <div class="col-sub">What filled you back up?</div>
+          <div id="restRestoreList"></div>
+          <div class="add-row"><button class="add-btn" id="addRestBtn">+ add</button></div>
+        </div>
+      </div>
+
+      <div class="today-toggles" style="margin-top:14px;">
+        <div class="toggle-item" id="toggle-prayer-wk"><div class="chk" id="chk-prayer-wk"></div> prayer + bible</div>
+      </div>
+      <div class="water-row">
+        <span class="water-label">Water</span>
+        <div id="waterDropsWk" style="display:flex;gap:6px;"></div>
+        <span style="font-size:11.5px;color:var(--muted);" id="waterCountWk">0 / 8</span>
+      </div>
+
+      <div class="section-bar maroon">Daily Win</div>
+      <textarea class="win-textarea" id="dailyWinWk" placeholder="One line."></textarea>
+    </div>
+  </div>
+
+  <!-- ============ WEEK VIEW ============ -->
+  <div class="view" id="view-week">
+
+    <div class="navbar">
+      <button class="nav-arrow" id="weekPrev">‹</button>
+      <div class="navbar-center">
+        <div id="navWeekLabel">—</div>
+        <button class="jump-btn" id="jumpThisWeek">Jump to this week</button>
+      </div>
+      <button class="nav-arrow" id="weekNext">›</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <div>
+          <div class="card-title">Weekly Plan</div>
+          <div class="field-inline">Week <span id="weekWeekNum">1 / 13</span> · <span id="weekOfLabel"></span></div>
+        </div>
+      </div>
+      <div class="field-inline" style="margin-bottom:10px;">This week moves multiplier #
+        <input type="text" id="weekMultiplier" style="width:30px;text-align:center;">
+      </div>
+
+      <div class="section-bar">Set the Shape <span class="sub">rest days first</span></div>
+      <div class="week-days" id="weekDaysGrid"></div>
+      <div class="rest-hint" style="margin-bottom:6px;">Tap a day's name to jump to that Day page.</div>
+
+      <div class="section-bar">3 Crucial Results This Week</div>
+      <div id="crucialList"></div>
+      <div class="add-row"><button class="add-btn" id="addCrucialBtn">+ add result</button></div>
+
+      <div class="section-bar">This Week's Top Moves</div>
+      <div id="movesList"></div>
+
+      <div class="col3" style="margin-top:14px;">
+        <div style="grid-column:1/3;">
+          <div class="col-head navy2">Looking Back</div>
+          <div class="col-sub">What worked → keep</div>
+          <textarea class="win-textarea" id="whatWorked" style="min-height:50px;"></textarea>
+        </div>
+        <div>
+          <div class="col-head navy2">&nbsp;</div>
+          <div class="col-sub">What to change → adjust</div>
+          <textarea class="win-textarea" id="whatChange" style="min-height:50px;"></textarea>
+        </div>
+      </div>
+
+      <div class="section-bar">Farm List <span class="sub">relationships to focus on</span></div>
+      <table class="farm-table" id="farmTable">
+        <thead><tr><th style="width:26%">Person</th><th style="width:37%">Why</th><th>This week's move</th><th></th></tr></thead>
+        <tbody id="farmBody"></tbody>
+      </table>
+      <div class="add-row"><button class="add-btn" id="addFarmBtn">+ add person</button></div>
+
+      <div class="section-bar teal">Linger <span class="sub">what is God saying this week?</span></div>
+      <textarea class="win-textarea" id="weekLinger" style="min-height:60px;"></textarea>
+    </div>
+
+    <!-- MEAL PLANNER -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title" style="font-size:19px;">Meal Planner</div>
+        <div class="field-inline" id="mealsWeekOfLabel"></div>
+      </div>
+      <div class="meal-grid-wrap">
+        <table class="meal-table" id="mealTable">
+          <thead><tr><th></th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th><th>SUN</th></tr></thead>
+          <tbody id="mealBody"></tbody>
+        </table>
+      </div>
+
+      <div class="section-bar">Shopping List</div>
+      <div id="shoppingList"></div>
+      <div class="add-row"><button class="add-btn" id="addShopBtn">+ add item</button></div>
+    </div>
+  </div>
+
+  <!-- ============ QUARTER VIEW ============ -->
+  <div class="view" id="view-quarter">
+
+    <div class="navbar">
+      <button class="nav-arrow" id="quarterPrev">‹</button>
+      <div class="navbar-center">
+        <div id="navQuarterLabel">—</div>
+        <button class="jump-btn" id="jumpThisQuarter">Jump to this quarter</button>
+      </div>
+      <button class="nav-arrow" id="quarterNext">›</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title">This Quarter</div>
+        <div style="display:flex;gap:14px;">
+          <div class="field-inline">Quarter <span id="qQuarter">Q3</span></div>
+          <div class="field-inline">Year <span id="qYear">2026</span></div>
+        </div>
+      </div>
+
+      <div class="section-bar">Plan Rest First <span class="sub">set before any focus days</span></div>
+      <div class="rest-grid">
+        <div class="rest-box free">
+          <div class="label">Free Days</div><div class="desc">fully off</div>
+          <div class="tgt-row">Target <input type="text" id="freeTarget"></div>
+          <div class="tgt-row">Actual <span id="freeActual">0</span></div>
+        </div>
+        <div class="rest-box buffer">
+          <div class="label">Buffer Days</div><div class="desc">admin / margin</div>
+          <div class="tgt-row">Target <input type="text" id="bufferTarget"></div>
+          <div class="tgt-row">Actual <span id="bufferActual">0</span></div>
+        </div>
+        <div class="rest-box focus">
+          <div class="label">Focus Days</div><div class="desc">deep production</div>
+          <div class="tgt-row">Target <input type="text" id="focusTarget"></div>
+          <div class="tgt-row">Actual <span id="focusActual">0</span></div>
+        </div>
+      </div>
+      <div class="rest-hint">Actuals tally automatically from the day types you log on the Today tab.</div>
+
+      <div class="section-bar">Looking Back · Right Now · Looking Ahead</div>
+      <div class="col3">
+        <div>
+          <div class="col-head pink">Proud of</div>
+          <div class="col-sub">last quarter — what actually moved</div>
+          <ul class="item-list" id="proudList"></ul>
+          <div class="add-row"><button class="add-btn" data-list="proud">+ add</button></div>
+        </div>
+        <div>
+          <div class="col-head teal2">Confident</div>
+          <div class="col-sub">right now — where there's traction</div>
+          <ul class="item-list" id="confidentList"></ul>
+          <div class="add-row"><button class="add-btn" data-list="confident">+ add</button></div>
+        </div>
+        <div>
+          <div class="col-head navy2">Excited</div>
+          <div class="col-sub">looking ahead — what pulls forward</div>
+          <ul class="item-list" id="excitedList"></ul>
+          <div class="add-row"><button class="add-btn" data-list="excited">+ add</button></div>
+        </div>
+      </div>
+
+      <div class="section-bar">The Quarter's Multipliers <span class="sub">3–5 achievements that move everything</span></div>
+      <div id="multiplierList"></div>
+
+      <div class="section-bar teal">Linger <span class="sub">what is God saying this quarter?</span></div>
+      <textarea class="win-textarea" id="quarterLinger" style="min-height:150px;"></textarea>
+    </div>
+  </div>
+
+</div>
+
+<div class="storage-error" id="storageError"></div>
+<div class="saved-note" id="savedNote">Saved</div>
+
+<script>
+/* ================================================================
+   ASHLEY'S DIGITAL PLANNER
+   ================================================================ */
+
+/* ---------------- Storage: artifact storage, hardened ----------------
+   Back to window.storage (the GitHub-direct approach is not reachable — an
+   artifact's network access is limited to api.anthropic.com, confirmed by the
+   "Failed to fetch" error; there's no way around that from inside the sandbox).
+   Every get/set now retries on transient failure, and there's a manual
+   Export/Import so your data is never solely dependent on this backend. */
+async function sget(key){
+  for(let attempt=0; attempt<3; attempt++){
+    try{
+      const r = await window.storage.get(key,false);
+      hideStorageError();
+      return r ? JSON.parse(r.value) : null;
+    }catch(e){
+      if(attempt===2){
+        console.error('storage get failed after retries', key, e);
+        showStorageError('Could not load some data (' + (e.message||e) + '). Try reloading — if it keeps happening, use Export to back up what\'s on screen.');
+        return null;
+      }
+      await sleep(300 * (attempt+1));
+    }
+  }
+}
+async function sset(key,val){
+  for(let attempt=0; attempt<3; attempt++){
+    try{
+      await window.storage.set(key, JSON.stringify(val), false);
+      hideStorageError();
+      flashSaved();
+      return true;
+    }catch(e){
+      if(attempt===2){
+        console.error('storage set failed after retries', key, e);
+        showStorageError('Save failed (' + (e.message||e) + '). Your change is still on screen — don\'t close this tab. Tap Export to back it up now.');
+        return false;
+      }
+      await sleep(300 * (attempt+1));
+    }
+  }
+}
+async function slist(prefix){
+  try{
+    const r = await window.storage.list(prefix, false);
+    return r || {keys:[]};
+  }catch(e){
+    console.error('storage list failed', e);
+    return {keys:[]};
+  }
+}
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+let saveTimer=null;
+function flashSaved(){
+  clearTimeout(saveTimer);
+  const el=document.getElementById('savedNote');
+  el.classList.add('show');
+  saveTimer=setTimeout(()=>el.classList.remove('show'),900);
+}
+function showStorageError(msg){
+  const el=document.getElementById('storageError');
+  if(!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function hideStorageError(){
+  const el=document.getElementById('storageError');
+  if(el) el.classList.remove('show');
+}
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+
+/* ---------------- Manual backup: Export / Import ----------------
+   A safety net independent of storage reliability. Export pulls every
+   key this session knows about (or scans storage for everything with a
+   known prefix) into one downloadable JSON file. Import restores from it.
+   In-memory data (whatever's currently loaded/visible) is included first and
+   always wins — that way Export still captures your real, current work even
+   in the middle of a storage outage where fresh reads are failing. */
+const KNOWN_PREFIXES = ['day-','week-','meals-','quarter-'];
+async function exportAllData(){
+  const out = {};
+
+  // Guaranteed-safe: whatever's currently loaded in memory, no storage call needed.
+  if(currentDayKey && dayData) out[currentDayKey] = dayData;
+  if(currentWeekKey && weekData) out[currentWeekKey] = weekData;
+  if(currentMealsKey && mealsData) out[currentMealsKey] = mealsData;
+  if(dayMealsKey && dayMealsData) out[dayMealsKey] = dayMealsData;
+  if(currentQuarterKey && browsedQuarterData) out[currentQuarterKey] = browsedQuarterData;
+  if(TODAY_QUARTER_KEY && quarterData) out[TODAY_QUARTER_KEY] = quarterData;
+
+  const inMemoryCount = Object.keys(out).length;
+  let scannedCount = 0, failedCount = 0;
+
+  // Best-effort: also pull in everything else from storage, but don't let
+  // failures here block the export — the in-memory data above is already safe.
+  try{
+    for(const prefix of KNOWN_PREFIXES){
+      const list = await slist(prefix);
+      for(const k of (list.keys||[])){
+        if(out.hasOwnProperty(k)) continue; // already have the fresher in-memory copy
+        const v = await sget(k);
+        if(v!==null){ out[k]=v; scannedCount++; }
+        else{ failedCount++; }
+      }
+    }
+  }catch(e){ console.error('export scan failed', e); }
+
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ashley-planner-backup-' + isoDate(new Date()) + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  if(failedCount>0){
+    alert('Backup saved with ' + (inMemoryCount+scannedCount) + ' items. ' + failedCount + ' older items couldn\'t be read from storage right now and were left out — export again once storage is stable to get those too.');
+  }
+}
+async function importAllData(file){
+  const text = await file.text();
+  let data;
+  try{ data = JSON.parse(text); }catch(e){ alert('That file isn\'t valid JSON.'); return; }
+  const keys = Object.keys(data);
+  if(!confirm('This will restore '+keys.length+' saved items from this backup file, overwriting anything with the same key. Continue?')) return;
+  let failed = 0;
+  for(const k of keys){
+    const ok = await sset(k, data[k]);
+    if(!ok) failed++;
+  }
+  alert(failed===0 ? 'Restored '+keys.length+' items.' : 'Restored '+(keys.length-failed)+' of '+keys.length+' items — '+failed+' failed, check the error banner.');
+  location.reload();
+}
+
+/* ---------------- HubSpot push (on-demand, per-task) ----------------
+   Runs through Anthropic's API with the HubSpot MCP connector attached.
+   This is deliberately NOT used for storage/sync — only for the person
+   tapping "→ HubSpot" on a specific task they want tracked there too. */
+const HUBSPOT_OWNER_ID = '535583785';
+const HUBSPOT_COMPANY_ID = '55033489750';
+
+async function pushTaskToHubSpot(taskText, dueIso, btnEl){
+  if(!taskText || !taskText.trim()){ return; }
+  const originalHtml = btnEl.innerHTML;
+  btnEl.disabled = true;
+  btnEl.textContent = 'Sending…';
+  try{
+    const prompt = 'Create exactly one HubSpot task and nothing else. Do not search, do not look up other records, just create this task with these exact properties: '
+      + 'hs_task_subject="' + taskText.replace(/"/g,'\\"') + '", '
+      + 'hs_task_status="NOT_STARTED", hs_task_priority="MEDIUM", '
+      + 'hs_timestamp="' + dueIso + 'T09:00:00-05:00", '
+      + 'hubspot_owner_id="' + HUBSPOT_OWNER_ID + '". '
+      + 'Associate the task with company record ID ' + HUBSPOT_COMPANY_ID + '. '
+      + 'Reply with a short confirmation once created.';
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role:'user', content: prompt }],
+        mcp_servers: [{ type:'url', url:'https://mcp.hubspot.com/anthropic', name:'hubspot-mcp' }]
+      })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const toolResult = (data.content||[]).find(b=>b.type==='mcp_tool_result');
+    if(!toolResult) throw new Error('No confirmed tool call in response');
+
+    btnEl.textContent = '✓ Sent';
+    btnEl.classList.add('hb-sent');
+    return true;
+  }catch(e){
+    console.error('HubSpot push failed', e);
+    btnEl.disabled = false;
+    btnEl.textContent = '⚠ Retry';
+    return false;
+  }
+}
+
+/* Maps Google Calendar's colorId (1-11) to your planner categories, so synced
+   events render in the same family/personal/work/church/home colors as your
+   actual Google Calendar color-coding. Confirmed from your existing scheme:
+   Tomato(11)=red=personal, Tangerine(6)=orange=home. The rest are my best-guess
+   mapping by hue — tell me if any of these are wrong and I'll fix the table. */
+const GCAL_COLOR_TO_CATEGORY = {
+  '11':'personal', // Tomato (red)
+  '4':'personal',  // Flamingo (pink/red)
+  '6':'food',       // Tangerine (orange) — confirmed: errands/school
+  '5':'food',       // Banana (yellow)
+  '2':'family',     // Sage (light green)
+  '10':'family',    // Basil (dark green)
+  '1':'church',     // Lavender
+  '3':'church',     // Grape (purple)
+  '7':'work',       // Peacock (teal)
+  '9':'work',       // Blueberry (dark blue)
+  '8':'work'        // Graphite — no clean match, default to work
+};
+function categoryColorFor(colorId){
+  const cat = GCAL_COLOR_TO_CATEGORY[String(colorId||'')];
+  if(cat){ const c=CATS.find(x=>x.id===cat); if(c) return c.color; }
+  return 'var(--work)';
+}
+
+/* ---------------- Google Calendar sync (on-demand, read-only) ----------------
+   Same mechanism as the HubSpot push: routes through Anthropic's API with your
+   Google Calendar connector attached. Pulls real events for one date and lays
+   them into a read-only timeline — it never writes back to your calendar. */
+async function syncFromCalendar(dateIso, btnEl){
+  const originalText = btnEl.textContent;
+  btnEl.disabled = true;
+  btnEl.textContent = 'Syncing…';
+  try{
+    const prompt = 'List every event on my primary Google Calendar for ' + dateIso + ' only. '
+      + 'Reply with ONLY a JSON array and nothing else — no explanation, no markdown code fences. '
+      + 'Exact format: [{"title":"Event name","start":"HH:MM","end":"HH:MM","colorId":"11"}] using 24-hour time. '
+      + 'Include the numeric colorId Google Calendar reports for each event (the colorId field on the event, 1-11). '
+      + 'If an event has no explicit color set, omit the colorId field for that event. '
+      + 'If there are no events that day, reply with exactly: []';
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{ role:'user', content: prompt }],
+        mcp_servers: [{ type:'url', url:'https://calendarmcp.googleapis.com/mcp/v1', name:'google-calendar-mcp' }]
+      })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+    const cleaned = text.replace(/```json/gi,'').replace(/```/g,'').trim();
+    const events = JSON.parse(cleaned);
+    if(!Array.isArray(events)) throw new Error('Unexpected response shape');
+
+    btnEl.textContent = '✓ Synced';
+    setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
+    return events;
+  }catch(e){
+    console.error('Calendar sync failed', e);
+    btnEl.disabled = false;
+    btnEl.textContent = '⚠ Retry';
+    return null;
+  }
+}
+
+/* ---------------- HubSpot task list sync (on-demand, read-only) ----------------
+   Same mechanism again: pulls your real HubSpot tasks due on one specific date,
+   including whether each is done. Doesn't write anything back — separate from
+   the "→ HubSpot" push buttons on Other Tasks, which go the other direction. */
+async function syncHubspotTasks(dateIso, btnEl){
+  btnEl.disabled = true;
+  btnEl.textContent = 'Syncing…';
+  try{
+    const prompt = 'List all HubSpot tasks assigned to owner ID ' + HUBSPOT_OWNER_ID + ' whose due date (hs_timestamp) falls on ' + dateIso + ' — that exact day only, not the surrounding week. '
+      + 'Include tasks regardless of status (both completed and not completed). '
+      + 'For each task, explicitly check the hs_task_status property value returned by HubSpot. '
+      + 'Reply with ONLY a JSON array and nothing else — no explanation, no markdown code fences. '
+      + 'Exact format: [{"subject":"Task name","done":true,"priority":"HIGH/MEDIUM/LOW or empty string"}] '
+      + '(use real JSON booleans true/false, not strings). '
+      + 'Set "done" to the boolean true ONLY when that task\'s actual hs_task_status property equals exactly "COMPLETED". '
+      + 'Set "done" to false for every other status (NOT_STARTED, IN_PROGRESS, WAITING, DEFERRED, or anything else). '
+      + 'Do not guess — read the actual hs_task_status value for each task before deciding. '
+      + 'If there are no tasks due that day, reply with exactly: []';
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [{ role:'user', content: prompt }],
+        mcp_servers: [{ type:'url', url:'https://mcp.hubspot.com/anthropic', name:'hubspot-mcp' }]
+      })
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+    const cleaned = text.replace(/```json/gi,'').replace(/```/g,'').trim();
+    const tasks = JSON.parse(cleaned);
+    if(!Array.isArray(tasks)) throw new Error('Unexpected response shape');
+
+    btnEl.textContent = '✓ Synced';
+    setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
+    return tasks;
+  }catch(e){
+    console.error('HubSpot task sync failed', e);
+    btnEl.disabled = false;
+    btnEl.textContent = '⚠ Retry';
+    return null;
+  }
+}
+
+
+/* ---------------- Date / quarter math ---------------- */
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function today(){ return new Date(); }
+function stripTime(d){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()); }
+function mondayOfWeek(d){
+  const dow = d.getDay(); // 0 Sun..6 Sat
+  const diff = (dow===0? -6 : 1-dow);
+  const m = new Date(d); m.setDate(d.getDate()+diff);
+  return stripTime(m);
+}
+function fmtLong(d){ return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
+function fmtShort(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+
+/* Calendar-quarter aware week numbering: "Week 1" always starts the Monday of the
+   week containing the 1st of a calendar quarter, and resets once you cross into the
+   next quarter's anchor Monday — even if that Monday falls a day or two inside the
+   previous calendar quarter (matches how the paper planner actually laid out weeks:
+   Q3 2026 begins Monday June 29, not July 1). */
+function quarterCalStart(d){ return new Date(d.getFullYear(), Math.floor(d.getMonth()/3)*3, 1); }
+function resolveQuarterAnchors(d){
+  const day = stripTime(d);
+  let qStart = quarterCalStart(day);
+  let anchor = mondayOfWeek(qStart);
+  let nextQStart = new Date(qStart.getFullYear(), qStart.getMonth()+3, 1);
+  let nextAnchor = mondayOfWeek(nextQStart);
+
+  if(day >= nextAnchor){
+    // date has rolled into the next quarter's week-anchor already
+    const nextNextQStart = new Date(nextQStart.getFullYear(), nextQStart.getMonth()+3, 1);
+    return { anchor: nextAnchor, nextAnchor: mondayOfWeek(nextNextQStart) };
+  }
+  if(day < anchor){
+    // date is still finishing out the previous quarter's last week
+    const prevQStart = new Date(qStart.getFullYear(), qStart.getMonth()-3, 1);
+    return { anchor: mondayOfWeek(prevQStart), nextAnchor: anchor };
+  }
+  return { anchor, nextAnchor };
+}
+function weekNumberInQuarter(d){
+  const {anchor} = resolveQuarterAnchors(d);
+  const diffDays = Math.floor((stripTime(d) - anchor) / 86400000);
+  return Math.floor(diffDays/7) + 1;
+}
+function totalWeeksInQuarter(d){
+  const {anchor, nextAnchor} = resolveQuarterAnchors(d);
+  return Math.round((nextAnchor - anchor) / (7*86400000));
+}
+function weekLabel(d){ return weekNumberInQuarter(d) + ' / ' + totalWeeksInQuarter(d); }
+
+/* Quarter bounds driven by the editable Quarter/Year fields on the Quarter tab
+   (defaults to Q3 2026) — used for the Free/Buffer/Focus tally. */
+function quarterBoundsFromLabel(qLabel, yearLabel){
+  const qNum = parseInt(String(qLabel||'Q3').replace(/[^0-9]/g,''),10) || 3;
+  const year = parseInt(yearLabel,10) || 2026;
+  const qStartMonth = (Math.min(Math.max(qNum,1),4)-1)*3;
+  const start = new Date(year, qStartMonth, 1);
+  const end   = new Date(year, qStartMonth+3, 0);
+  return { start: stripTime(start), end: stripTime(end) };
+}
+function isoWithinBounds(iso, bounds){
+  const d = new Date(iso+'T00:00:00');
+  return d>=bounds.start && d<=bounds.end;
+}
+
+
+const TODAY = today();
+
+/* Quarter storage keys are computed from calendar quarter + year, so navigating
+   into a new quarter automatically gets its own bucket with no manual setup. */
+function calendarQuarterOf(d){
+  return { qNum: Math.floor(d.getMonth()/3)+1, year: d.getFullYear() };
+}
+function quarterKeyFor(qNum, year){ return 'quarter-q'+qNum+'-'+year; }
+const TODAY_QNUM_YEAR = calendarQuarterOf(TODAY);
+const TODAY_QUARTER_KEY = quarterKeyFor(TODAY_QNUM_YEAR.qNum, TODAY_QNUM_YEAR.year);
+
+const CATS = [
+  {id:'family',   label:'Family',   color:'var(--family)'},
+  {id:'personal', label:'Personal', color:'var(--personal)'},
+  {id:'work',     label:'Work',     color:'var(--work)'},
+  {id:'church',   label:'Church',   color:'var(--church)'},
+  {id:'food',     label:'Home', color:'var(--food)'}
+];
+const HOURS = ['6','7','8','9','10','11','12','1','2','3','4','5','6','7','8','9'];
+const MEAL_ROWS = ['breakfast','lunch','dinner','snacks'];
+const WEEK_DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+
+function isWeekendDate(d){ const dow=d.getDay(); return dow===0 || dow===6; }
+
+/* ---------------- Default (blank) data ---------------- */
+function defaultDay(){
+  return {
+    dayType:null,
+    hours: new Array(HOURS.length).fill(null),
+    big3: [{text:'',done:false,block:'',hubspot:false},{text:'',done:false,block:'',hubspot:false},{text:'',done:false,block:'',hubspot:false}],
+    otherTasks: [],
+    workout:false,
+    prayer:false,
+    water:0,
+    win:'',
+    intention:'',
+    fewThings:[],
+    restRestore:[],
+    calendarEvents: null, // null = never synced; [] = synced, no events
+    hubspotTasks: null    // null = never synced; [] = synced, no open tasks
+  };
+}
+function defaultWeek(){
+  return {
+    multiplier:'',
+    crucial: [{text:'',why:'',done:false},{text:'',why:'',done:false},{text:'',why:'',done:false}],
+    moves:{family:'',personal:'',work:'',church:'',food:''},
+    whatWorked:'', whatChange:'',
+    farm:[{name:'',why:'',move:'',done:false}],
+    linger:''
+  };
+}
+function defaultMeals(){
+  const meals={};
+  WEEK_DAY_KEYS.forEach(k=>{ meals[k]={breakfast:'',lunch:'',dinner:'',snacks:''}; });
+  return { meals, shopping: [] };
+}
+function defaultQuarter(){
+  // Starts blank for everyone — real content now lives only in your private
+  // storage, never in this public-facing code.
+  return {
+    quarter:'Q3', year:'2026',
+    freeTarget:'', bufferTarget:'', focusTarget:'',
+    proud:[], confident:[], excited:[],
+    multipliers:[{goal:'',why:''},{goal:'',why:''},{goal:'',why:''}],
+    linger:''
+  };
+}
+/* Any quarter other than Q3 2026 (which has your real filled-in content above)
+   starts empty, but with its own Quarter/Year label already correct. */
+function blankQuarterFor(qNum, year){
+  return {
+    quarter:'Q'+qNum, year:String(year),
+    freeTarget:'', bufferTarget:'', focusTarget:'',
+    proud:[], confident:[], excited:[],
+    multipliers:[{goal:'',why:''},{goal:'',why:''},{goal:'',why:''}],
+    linger:''
+  };
+}
+function loadQuarterData(qNum, year){
+  return (qNum===3 && year===2026) ? defaultQuarter() : blankQuarterFor(qNum, year);
+}
+
+/* ---------------- Seed data pulled from Ashley's actual filled-in Week 1 pages ---------------- */
+/* No personal content is seeded into this public-facing code. All real data
+   lives only in your private storage (Supabase), never in source code. */
+const SEED_DAYS = {};
+const SEED_WEEKS = {};
+const SEED_MEALS = {};
+
+function seedDay(iso){ return SEED_DAYS[iso] ? JSON.parse(JSON.stringify(SEED_DAYS[iso])) : defaultDay(); }
+function seedWeek(mondayIso){ return SEED_WEEKS[mondayIso] ? JSON.parse(JSON.stringify(SEED_WEEKS[mondayIso])) : defaultWeek(); }
+function seedMeals(mondayIso){ return SEED_MEALS[mondayIso] ? JSON.parse(JSON.stringify(SEED_MEALS[mondayIso])) : defaultMeals(); }
+
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+/* ---------------- Global navigation state ---------------- */
+let selectedDate = stripTime(TODAY);   // drives the Day tab
+let weekViewDate = mondayOfWeek(TODAY); // drives the Week tab (a Monday)
+let quarterViewDate = stripTime(TODAY); // drives the Quarter tab (any date within the browsed quarter)
+
+let dayData, weekData, mealsData, quarterData, browsedQuarterData, dayMealsData;
+let weekDayTypes = []; // [{iso, dayType}] for the 7 days of weekViewDate — single source of truth is the day- record
+let currentDayKey, currentWeekKey, currentMealsKey, currentQuarterKey, dayMealsKey;
+
+/* In-memory cache of day- records, so we don't re-hit storage for dates we've
+   already fetched. dayCache[iso] === undefined -> never checked.
+   dayCache[iso] === null -> checked, nothing saved yet (use seed/default). */
+const dayCache = {};
+let quarterCounts = {free:0,buffer:0,focus:0};         // today's real quarter — drives the pulse bars
+let quarterBoundsCache = null;
+let browsedQuarterCounts = {free:0,buffer:0,focus:0};  // whatever quarter is browsed on the Quarter tab
+let browsedQuarterBoundsCache = null;
+
+async function getDayRecord(iso){
+  if(dayCache.hasOwnProperty(iso)) return dayCache[iso];
+  const rec = await sget('day-'+iso);
+  dayCache[iso] = rec;
+  return rec;
+}
+
+/* One pass over the quarter's stored days for a given date range. Cheap after the
+   first call for any given day, since getDayRecord caches. */
+async function computeQuarterCounts(bounds){
+  const counts = {free:0,buffer:0,focus:0};
+  try{
+    const list = await slist('day-');
+    if(list && list.keys){
+      for(const k of list.keys){
+        const iso = k.replace('day-','');
+        if(isoWithinBounds(iso, bounds)){
+          const rec = await getDayRecord(iso);
+          if(rec && rec.dayType && counts.hasOwnProperty(rec.dayType)) counts[rec.dayType]++;
+        }
+      }
+    }
+  }catch(e){ /* storage unsupported, skip */ }
+  return counts;
+}
+
+function saveCurrentDay(){
+  const key = currentDayKey;
+  const iso = key.replace('day-','');
+  sset(key, dayData);
+  dayCache[iso] = dayData;
+}
+const saveDayDebounced   = debounce(saveCurrentDay, 500);
+const saveWeekDebounced  = debounce(()=>sset(currentWeekKey, weekData), 500);
+
+/* Meal data lives keyed by week (same as the Week tab), so the Day tab's
+   "Today's Meals" block and the Week tab's Meal Planner are always the same
+   underlying record — editing either one saves to the same storage key, and
+   if both happen to be showing the same week right now, they stay aliased to
+   the same in-memory object so the other view refreshes immediately too. */
+const saveMealsDebounced = debounce(()=>{
+  sset(currentMealsKey, mealsData);
+  if(dayMealsKey === currentMealsKey){ dayMealsData = mealsData; renderDayMealsTableIfVisible(); }
+}, 500);
+const saveDayMealsDebounced = debounce(()=>{
+  sset(dayMealsKey, dayMealsData);
+  if(currentMealsKey === dayMealsKey){ mealsData = dayMealsData; renderMeals(); }
+}, 500);
+
+function shortDayKeyFor(d){ return WEEK_DAY_KEYS[(d.getDay()+6)%7]; } // Mon=0..Sun=6
+function renderDayMealsTableIfVisible(){
+  if(document.getElementById('view-today') && document.getElementById('view-today').classList.contains('active')){
+    renderDayMealsTable();
+  }
+}
+
+const saveBrowsedQuarterDebounced = debounce(()=>{
+  sset(currentQuarterKey, browsedQuarterData);
+  // if she's editing the actual current quarter, keep the pulse card's copy in sync too
+  if(currentQuarterKey === TODAY_QUARTER_KEY){ quarterData = browsedQuarterData; renderPulse(); }
+}, 500);
+
+/* ---------------- Init ---------------- */
+async function init(){
+  quarterData = (await sget(TODAY_QUARTER_KEY)) || loadQuarterData(TODAY_QNUM_YEAR.qNum, TODAY_QNUM_YEAR.year);
+  renderPulse();
+  await rescanQuarterCounts(); // one full pass over today's real quarter — everything after this is incremental
+
+  await loadDay();
+  await loadWeek();
+  await loadQuarterTab();
+
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    });
+  });
+
+  document.getElementById('dayPrev').onclick=()=>changeDay(-1);
+  document.getElementById('dayNext').onclick=()=>changeDay(1);
+  document.getElementById('jumpToday').onclick=()=>{ selectedDate=stripTime(TODAY); loadDay(); };
+  document.getElementById('dayPicker').onchange=(e)=>{
+    if(!e.target.value) return;
+    selectedDate = stripTime(new Date(e.target.value+'T00:00:00'));
+    loadDay();
+  };
+
+  document.getElementById('weekPrev').onclick=()=>changeWeek(-1);
+  document.getElementById('weekNext').onclick=()=>changeWeek(1);
+  document.getElementById('jumpThisWeek').onclick=()=>{ weekViewDate=mondayOfWeek(TODAY); loadWeek(); };
+
+  document.getElementById('quarterPrev').onclick=()=>changeQuarter(-1);
+  document.getElementById('quarterNext').onclick=()=>changeQuarter(1);
+  document.getElementById('jumpThisQuarter').onclick=()=>{ quarterViewDate=stripTime(TODAY); loadQuarterTab(); };
+
+  document.getElementById('exportBtn').onclick=()=>exportAllData();
+  document.getElementById('importFile').onchange=(e)=>{
+    if(e.target.files && e.target.files[0]) importAllData(e.target.files[0]);
+    e.target.value='';
+  };
+}
+
+async function changeDay(delta){
+  const d = new Date(selectedDate); d.setDate(d.getDate()+delta);
+  selectedDate = stripTime(d);
+  await loadDay();
+}
+async function changeWeek(delta){
+  const d = new Date(weekViewDate); d.setDate(d.getDate()+ (7*delta));
+  weekViewDate = stripTime(d);
+  await loadWeek();
+}
+async function changeQuarter(delta){
+  const {qNum, year} = calendarQuarterOf(quarterViewDate);
+  let newQNum = qNum + delta, newYear = year;
+  while(newQNum > 4){ newQNum -= 4; newYear += 1; }
+  while(newQNum < 1){ newQNum += 4; newYear -= 1; }
+  quarterViewDate = new Date(newYear, (newQNum-1)*3, 1);
+  await loadQuarterTab();
+}
+
+async function loadDay(){
+  const iso = isoDate(selectedDate);
+  currentDayKey = 'day-' + iso;
+  const rec = await getDayRecord(iso);
+  dayData = rec || seedDay(iso);
+  document.getElementById('dayPicker').value = iso;
+
+  const weekMonIso = isoDate(mondayOfWeek(selectedDate));
+  dayMealsKey = 'meals-' + weekMonIso;
+  if(dayMealsKey === currentMealsKey && mealsData){
+    dayMealsData = mealsData; // same week already loaded on the Week tab — share it live
+  }else{
+    dayMealsData = (await sget(dayMealsKey)) || seedMeals(weekMonIso);
+  }
+
+  renderDay();
+}
+async function loadWeek(){
+  const iso = isoDate(weekViewDate);
+  currentWeekKey = 'week-' + iso;
+  currentMealsKey = 'meals-' + iso;
+  weekData = (await sget(currentWeekKey)) || seedWeek(iso);
+
+  if(currentMealsKey === dayMealsKey && dayMealsData){
+    mealsData = dayMealsData; // same week the Day tab is showing — share it live
+  }else{
+    mealsData = (await sget(currentMealsKey)) || seedMeals(iso);
+  }
+
+  weekDayTypes = await loadWeekDayTypes(weekViewDate);
+  renderWeek();
+}
+async function loadQuarterTab(){
+  const {qNum, year} = calendarQuarterOf(quarterViewDate);
+  currentQuarterKey = quarterKeyFor(qNum, year);
+  browsedQuarterData = (await sget(currentQuarterKey)) || loadQuarterData(qNum, year);
+
+  // if this happens to be the real current quarter, share the same object so
+  // edits here also refresh the pulse card without waiting for a reload
+  if(currentQuarterKey === TODAY_QUARTER_KEY){
+    quarterData = browsedQuarterData;
+    renderPulse();
+  }
+
+  await rescanBrowsedQuarterCounts();
+  renderQuarterTab();
+}
+
+/* ---------------- Day type: single source of truth is the day- record ----------------
+   Both the Week tab's "Set the Shape" pills and the Day tab's free/focus/buffer pills
+   read and write the SAME day- record, so changing one always updates the other and
+   the quarter tally immediately — with no extra storage round-trips beyond the save
+   itself, since counts are kept incrementally in memory. ------------------------------ */
+async function loadWeekDayTypes(weekMonday){
+  const results = [];
+  for(let i=0;i<7;i++){
+    const d = new Date(weekMonday); d.setDate(weekMonday.getDate()+i);
+    const iso = isoDate(d);
+    const rec = await getDayRecord(iso);
+    const dt = rec ? rec.dayType : seedDay(iso).dayType;
+    results.push({iso, dayType:dt});
+  }
+  return results;
+}
+async function setDayType(iso, newType){
+  let rec = await getDayRecord(iso);
+  if(!rec) rec = seedDay(iso);
+  const oldType = rec.dayType;
+  rec.dayType = (oldType===newType) ? null : newType;
+  await sset('day-'+iso, rec);
+  dayCache[iso] = rec;
+
+  if(quarterBoundsCache && isoWithinBounds(iso, quarterBoundsCache)){
+    if(oldType && quarterCounts.hasOwnProperty(oldType)) quarterCounts[oldType]--;
+    if(rec.dayType && quarterCounts.hasOwnProperty(rec.dayType)) quarterCounts[rec.dayType]++;
+    updateQuarterBarsUI();
+  }
+  if(browsedQuarterBoundsCache && isoWithinBounds(iso, browsedQuarterBoundsCache)){
+    if(oldType && browsedQuarterCounts.hasOwnProperty(oldType)) browsedQuarterCounts[oldType]--;
+    if(rec.dayType && browsedQuarterCounts.hasOwnProperty(rec.dayType)) browsedQuarterCounts[rec.dayType]++;
+    updateBrowsedQuarterActualsUI();
+  }
+
+  const idx = weekDayTypes.findIndex(w=>w.iso===iso);
+  if(idx>-1) weekDayTypes[idx].dayType = rec.dayType;
+
+  if(isoDate(selectedDate)===iso){ dayData = rec; }
+
+  return rec.dayType;
+}
+
+/* ---------------- Pulse (always = real today, not the browsed date) ---------------- */
+function renderPulse(){
+  const hour = TODAY.getHours();
+  document.getElementById('greeting').textContent =
+    (hour<12?'Good morning, Ashley': hour<18?'Good afternoon, Ashley':'Good evening, Ashley');
+  document.getElementById('todayDate').textContent = fmtLong(TODAY);
+  document.getElementById('weekBadge').textContent = 'Week ' + weekLabel(TODAY);
+
+  const lines = (quarterData.linger||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  if(lines.length){
+    const idx = TODAY.getDate() % lines.length;
+    document.getElementById('pulseLinger').textContent = lines[idx];
+  }
+  startMultiplierRotation();
+}
+
+/* Fades through the Quarter tab's multipliers on a loop, one at a time. */
+let pulseMultiplierTimer = null;
+function startMultiplierRotation(){
+  const el = document.getElementById('pulseMultiplier');
+  if(pulseMultiplierTimer){ clearInterval(pulseMultiplierTimer); pulseMultiplierTimer=null; }
+
+  const mults = (quarterData.multipliers||[]).filter(m=>m.goal && m.goal.trim());
+  if(!mults.length){ el.innerHTML=''; return; }
+
+  let idx = 0;
+  const paint = (i)=>{
+    el.innerHTML = 'This quarter\'s focus: <b>'+escapeHtml(mults[i].goal)+'</b>';
+  };
+  const advance = ()=>{
+    el.style.opacity = 0;
+    setTimeout(()=>{
+      idx = (idx+1) % mults.length;
+      paint(idx);
+      el.style.opacity = .9;
+    }, 500);
+  };
+
+  paint(idx);
+  el.style.opacity = .9;
+  if(mults.length > 1){
+    pulseMultiplierTimer = setInterval(advance, 4500);
+  }
+}
+
+/* One full pass over today's real quarter's stored days — drives only the pulse
+   card. Only called at load; everything after that is incremental via setDayType. */
+async function rescanQuarterCounts(){
+  quarterBoundsCache = quarterBoundsFromLabel(quarterData.quarter, quarterData.year);
+  quarterCounts = await computeQuarterCounts(quarterBoundsCache);
+  updateQuarterBarsUI();
+}
+
+/* Cheap: just repaints the pulse card's bars from quarterCounts + targets. No storage calls. */
+function updateQuarterBarsUI(){
+  const counts = quarterCounts;
+  const bars = [
+    {label:'Free', actual:counts.free, target:parseInt(quarterData.freeTarget)||1, color:'#5EA07A'},
+    {label:'Buffer', actual:counts.buffer, target:parseInt(quarterData.bufferTarget)||1, color:'#2E89C0'},
+    {label:'Focus', actual:counts.focus, target:parseInt(quarterData.focusTarget)||1, color:'#DD3A4F'},
+  ];
+  const barsEl = document.getElementById('pulseBars');
+  if(barsEl){
+    barsEl.innerHTML = bars.map(b=>{
+      const pct = Math.min(100, Math.round((b.actual/b.target)*100));
+      return '<div class="pulse-bar-item"><div class="pulse-bar-label"><span>'+b.label+'</span><span>'+b.actual+'/'+b.target+'</span></div><div class="pulse-bar-track"><div class="pulse-bar-fill" style="width:'+pct+'%;background:'+b.color+';"></div></div></div>';
+    }).join('');
+  }
+}
+
+/* Same idea, but for whichever quarter is browsed on the Quarter tab. */
+async function rescanBrowsedQuarterCounts(){
+  browsedQuarterBoundsCache = quarterBoundsFromLabel(browsedQuarterData.quarter, browsedQuarterData.year);
+  browsedQuarterCounts = await computeQuarterCounts(browsedQuarterBoundsCache);
+  updateBrowsedQuarterActualsUI();
+}
+function updateBrowsedQuarterActualsUI(){
+  const freeEl=document.getElementById('freeActual'), bufEl=document.getElementById('bufferActual'), focEl=document.getElementById('focusActual');
+  if(freeEl) freeEl.textContent = browsedQuarterCounts.free;
+  if(bufEl) bufEl.textContent = browsedQuarterCounts.buffer;
+  if(focEl) focEl.textContent = browsedQuarterCounts.focus;
+}
+
+/* ================= DAY VIEW ================= */
+function renderDay(){
+  document.getElementById('navDayLabel').textContent = fmtLong(selectedDate);
+
+  const weekend = isWeekendDate(selectedDate);
+  document.getElementById('weekdayCard').style.display = weekend ? 'none' : 'block';
+  document.getElementById('weekendCard').style.display = weekend ? 'block' : 'none';
+
+  if(weekend){ renderWeekendDay(); } else { renderWeekdayDay(); }
+}
+
+/* Formats "HH:MM" (24hr, as returned by the sync) into a compact 12hr label,
+   e.g. "07:30" -> "7:30am", "13:00" -> "1pm" (drops :00 for cleanliness). */
+function formatTime12(hhmm){
+  const parts = String(hhmm||'').split(':');
+  let h = parseInt(parts[0],10);
+  const m = parseInt(parts[1],10)||0;
+  if(isNaN(h)) return '';
+  const period = h>=12 ? 'pm' : 'am';
+  h = h%12; if(h===0) h=12;
+  return m===0 ? (h+period) : (h+':'+String(m).padStart(2,'0')+period);
+}
+
+/* Renders synced Google Calendar events (dayData.calendarEvents) as a read-only
+   proportional timeline, 6am–10pm, matching the hour-grid's row height (26px/hr)
+   so the two stay visually aligned. */
+function renderCalendarTimeline(){
+  const labelsEl = document.getElementById('calHourLabels');
+  labelsEl.innerHTML='';
+  HOURS.forEach(h=>{
+    const d=document.createElement('div'); d.className='h'; d.textContent=h;
+    labelsEl.appendChild(d);
+  });
+
+  const container = document.getElementById('calendarTimeline');
+  container.innerHTML='';
+  const events = dayData.calendarEvents;
+  if(!events || events.length===0){
+    const hint=document.createElement('div'); hint.className='empty-hint';
+    hint.style.padding='10px';
+    hint.textContent = events===null ? 'Not synced yet — tap "Sync".' : 'No events synced for this day.';
+    container.appendChild(hint);
+    return;
+  }
+
+  const dayStartMin = 6*60;
+  const totalMin = HOURS.length*60; // 16 hours -> 416px, matches hour-grid row height
+
+  events.forEach((ev,idx)=>{
+    const parseHM = (s)=>{ const parts=String(s||'0:0').split(':'); return (parseInt(parts[0],10)||0)*60+(parseInt(parts[1],10)||0); };
+    let startMin = parseHM(ev.start);
+    let endMin = ev.end ? parseHM(ev.end) : startMin+30;
+    if(endMin<=startMin) endMin = startMin+30;
+
+    const clippedStart = Math.max(startMin, dayStartMin);
+    const clippedEnd = Math.min(endMin, dayStartMin+totalMin);
+    if(clippedEnd<=clippedStart) return; // entirely outside the visible 6am–10pm window
+
+    const topPx = ((clippedStart-dayStartMin)/60)*26;
+    const rawHeightPx = ((clippedEnd-clippedStart)/60)*26;
+    const GAP_PX = 4; // breathing room between back-to-back events
+    // Never let the block exceed its own real time slot — a min-height floor
+    // that's bigger than a short event's actual duration is what was causing
+    // gaps to disappear (or events to overlap) for short back-to-back items.
+    const heightPx = Math.min(Math.max(rawHeightPx - GAP_PX, 3), rawHeightPx);
+
+    const timeLabel = formatTime12(ev.start) + (ev.end ? '–'+formatTime12(ev.end) : '');
+
+    const block=document.createElement('div'); block.className='cal-event-block';
+    block.style.top = topPx+'px';
+    block.style.height = heightPx+'px';
+    block.style.background = categoryColorFor(ev.colorId);
+    // Earlier events get a higher z-index so, when a very short event's label
+    // has to spill slightly past its own tiny block, the text stays readable
+    // on top of whatever's positioned right below it, rather than being hidden.
+    block.style.zIndex = String(1000 - idx);
+    block.innerHTML = '<div class="cal-event-title">'+escapeHtml(ev.title||'Untitled')+'</div>'
+      + (heightPx>18 ? '<div class="cal-event-time">'+escapeHtml(timeLabel)+'</div>' : '');
+    container.appendChild(block);
+  });
+}
+
+/* Renders the synced (read-only) HubSpot tasks list for the selected date —
+   green check + faded text when done, matching the Other Tasks look. */
+/* Handles the sync response being slightly off-schema (the model doing the
+   HubSpot lookup doesn't always return "done" as a strict boolean). */
+function taskIsDone(t){
+  if(t.done===true || t.done===1) return true;
+  if(typeof t.done==='string' && ['true','1','completed','yes'].includes(t.done.toLowerCase())) return true;
+  if(t.completed===true) return true;
+  if(typeof t.completed==='string' && t.completed.toLowerCase()==='true') return true;
+  if(typeof t.status==='string' && t.status.toUpperCase()==='COMPLETED') return true;
+  return false;
+}
+
+function renderHubspotTasksList(){
+  const container = document.getElementById('hubspotTasksList');
+  container.innerHTML='';
+  const tasks = dayData.hubspotTasks;
+  if(!tasks || tasks.length===0){
+    const hint=document.createElement('div'); hint.className='empty-hint';
+    hint.textContent = tasks===null ? 'Not synced yet — tap "Sync".' : 'No HubSpot tasks due today.';
+    container.appendChild(hint);
+    return;
+  }
+  tasks.forEach(t=>{
+    const isDone = taskIsDone(t);
+    const row=document.createElement('div'); row.className='task-row';
+    const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':'');
+    const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);';
+    label.textContent = t.subject||'Untitled task';
+    if(isDone){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
+    row.appendChild(chk); row.appendChild(label);
+    container.appendChild(row);
+  });
+}
+
+function renderWeekdayDay(){
+  document.getElementById('todayDayName').textContent = selectedDate.toLocaleDateString('en-US',{weekday:'long'});
+  document.getElementById('todayWeekNum').textContent = weekLabel(selectedDate);
+
+  ['free','focus','buffer'].forEach(t=>{
+    const p = document.getElementById('pill-'+t);
+    p.className = 'type-pill' + (dayData.dayType===t ? ' sel-'+t : '');
+    p.onclick = async ()=>{
+      await setDayType(isoDate(selectedDate), t);
+      renderWeekdayDay();
+    };
+  });
+
+  renderCalendarTimeline();
+  const syncBtn = document.getElementById('syncCalendarBtn');
+  syncBtn.textContent = '↻ Sync';
+  syncBtn.disabled = false;
+  syncBtn.onclick = async ()=>{
+    const events = await syncFromCalendar(isoDate(selectedDate), syncBtn);
+    if(events !== null){
+      dayData.calendarEvents = events;
+      saveDayDebounced();
+      renderCalendarTimeline();
+    }
+  };
+
+  renderDayMealsTable();
+
+  renderHubspotTasksList();
+  const hsSyncBtn = document.getElementById('syncHubspotBtn');
+  hsSyncBtn.textContent = '↻ Sync';
+  hsSyncBtn.disabled = false;
+  hsSyncBtn.onclick = async ()=>{
+    const tasks = await syncHubspotTasks(isoDate(selectedDate), hsSyncBtn);
+    if(tasks !== null){
+      dayData.hubspotTasks = tasks;
+      saveDayDebounced();
+      renderHubspotTasksList();
+    }
+  };
+
+  const ot = document.getElementById('otherTasksList'); ot.innerHTML='';
+  if(dayData.otherTasks.length===0){
+    const hint=document.createElement('div'); hint.className='empty-hint'; hint.textContent='No other tasks yet.';
+    ot.appendChild(hint);
+  }
+  dayData.otherTasks.forEach((t,i)=>{
+    const row=document.createElement('div'); row.className='task-row';
+    const chk=document.createElement('div'); chk.className='chk'+(t.done?' checked':'');
+    chk.onclick=()=>{ t.done=!t.done; renderWeekdayDay(); saveDayDebounced(); };
+    const inp=document.createElement('input'); inp.type='text'; inp.value=t.text; inp.placeholder='task…';
+    if(t.done) inp.classList.add('done');
+    inp.oninput=()=>{ t.text=inp.value; saveDayDebounced(); };
+    const hbBtn=document.createElement('button'); hbBtn.className='hb-btn small'+(t.hubspot?' hb-sent':'');
+    hbBtn.textContent = t.hubspot ? '✓' : '→ Push';
+    if(t.hubspot) hbBtn.disabled=true;
+    hbBtn.onclick=async()=>{
+      const ok = await pushTaskToHubSpot(t.text, isoDate(selectedDate), hbBtn);
+      if(ok){ t.hubspot=true; saveDayDebounced(); }
+    };
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ dayData.otherTasks.splice(i,1); renderWeekdayDay(); saveDayDebounced(); };
+    row.appendChild(chk); row.appendChild(inp); row.appendChild(hbBtn); row.appendChild(del); ot.appendChild(row);
+  });
+  document.getElementById('addTaskBtn').onclick=()=>{
+    dayData.otherTasks.push({text:'',done:false,hubspot:false});
+    renderWeekdayDay(); saveDayDebounced();
+  };
+
+  const chkW = document.getElementById('chk-workout');
+  chkW.className='chk'+(dayData.workout?' checked':'');
+  document.getElementById('toggle-workout').onclick=()=>{ dayData.workout=!dayData.workout; renderWeekdayDay(); saveDayDebounced(); };
+  const chkP = document.getElementById('chk-prayer');
+  chkP.className='chk'+(dayData.prayer?' checked':'');
+  document.getElementById('toggle-prayer').onclick=()=>{ dayData.prayer=!dayData.prayer; renderWeekdayDay(); saveDayDebounced(); };
+
+  const wd = document.getElementById('waterDrops'); wd.innerHTML='';
+  for(let i=0;i<8;i++){
+    const d=document.createElement('div'); d.className='drop'+(i<dayData.water?' filled':'');
+    d.onclick=()=>{ dayData.water = (dayData.water===i+1) ? i : i+1; renderWeekdayDay(); saveDayDebounced(); };
+    wd.appendChild(d);
+  }
+  document.getElementById('waterCount').textContent = dayData.water+' / 8';
+
+  const winEl = document.getElementById('dailyWin');
+  if(document.activeElement !== winEl) winEl.value = dayData.win;
+  winEl.oninput=()=>{ dayData.win = winEl.value; saveDayDebounced(); };
+}
+
+function renderWeekendDay(){
+  document.getElementById('weekendDayName').textContent = selectedDate.toLocaleDateString('en-US',{weekday:'long'});
+
+  ['free','focus','buffer'].forEach(t=>{
+    const p = document.getElementById('pill-'+t+'-wk');
+    p.className = 'type-pill' + (dayData.dayType===t ? ' sel-'+t : '');
+    p.onclick = async ()=>{
+      await setDayType(isoDate(selectedDate), t);
+      renderWeekendDay();
+    };
+  });
+
+  const intentEl = document.getElementById('weekendIntention');
+  intentEl.value = dayData.intention||'';
+  intentEl.oninput=()=>{ dayData.intention=intentEl.value; saveDayDebounced(); };
+
+  const ft = document.getElementById('fewThingsList'); ft.innerHTML='';
+  dayData.fewThings.forEach((t,i)=>{
+    const li=document.createElement('div'); li.className='col-check-list';
+    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #EFEFEC;';
+    const chk=document.createElement('div'); chk.className='chk'+(t.done?' checked':'');
+    chk.onclick=()=>{ t.done=!t.done; renderWeekendDay(); saveDayDebounced(); };
+    const inp=document.createElement('input'); inp.type='text'; inp.value=t.text; inp.placeholder='…';
+    if(t.done) inp.classList.add('done');
+    inp.oninput=()=>{ t.text=inp.value; saveDayDebounced(); };
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ dayData.fewThings.splice(i,1); renderWeekendDay(); saveDayDebounced(); };
+    row.appendChild(chk); row.appendChild(inp); row.appendChild(del);
+    ft.appendChild(row);
+  });
+  document.getElementById('addFewThingBtn').onclick=()=>{
+    dayData.fewThings.push({text:'',done:false}); renderWeekendDay(); saveDayDebounced();
+  };
+
+  const rr = document.getElementById('restRestoreList'); rr.innerHTML='';
+  dayData.restRestore.forEach((t,i)=>{
+    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #EFEFEC;';
+    const inp=document.createElement('input'); inp.type='text'; inp.value=t.text||t; inp.placeholder='…';
+    inp.oninput=()=>{ dayData.restRestore[i]={text:inp.value}; saveDayDebounced(); };
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ dayData.restRestore.splice(i,1); renderWeekendDay(); saveDayDebounced(); };
+    row.appendChild(inp); row.appendChild(del);
+    rr.appendChild(row);
+  });
+  document.getElementById('addRestBtn').onclick=()=>{
+    dayData.restRestore.push({text:''}); renderWeekendDay(); saveDayDebounced();
+  };
+
+  const chkP = document.getElementById('chk-prayer-wk');
+  chkP.className='chk'+(dayData.prayer?' checked':'');
+  document.getElementById('toggle-prayer-wk').onclick=()=>{ dayData.prayer=!dayData.prayer; renderWeekendDay(); saveDayDebounced(); };
+
+  const wd = document.getElementById('waterDropsWk'); wd.innerHTML='';
+  for(let i=0;i<8;i++){
+    const d=document.createElement('div'); d.className='drop'+(i<dayData.water?' filled':'');
+    d.onclick=()=>{ dayData.water = (dayData.water===i+1) ? i : i+1; renderWeekendDay(); saveDayDebounced(); };
+    wd.appendChild(d);
+  }
+  document.getElementById('waterCountWk').textContent = dayData.water+' / 8';
+
+  const winEl = document.getElementById('dailyWinWk');
+  if(document.activeElement !== winEl) winEl.value = dayData.win;
+  winEl.oninput=()=>{ dayData.win = winEl.value; saveDayDebounced(); };
+}
+
+/* ================= WEEK VIEW ================= */
+function renderWeek(){
+  const sunEnd = new Date(weekViewDate); sunEnd.setDate(weekViewDate.getDate()+6);
+  document.getElementById('navWeekLabel').textContent = 'Week ' + weekLabel(weekViewDate) + ' · ' + fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
+  document.getElementById('weekWeekNum').textContent = weekLabel(weekViewDate);
+  document.getElementById('weekOfLabel').textContent = fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
+  document.getElementById('mealsWeekOfLabel').textContent = 'Week of ' + fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
+
+  const multInp = document.getElementById('weekMultiplier');
+  multInp.value = weekData.multiplier;
+  multInp.oninput = ()=>{ weekData.multiplier = multInp.value; saveWeekDebounced(); };
+
+  const dayNames=[['mon','MON'],['tue','TUE'],['wed','WED'],['thu','THU'],['fri','FRI'],['sat','SAT'],['sun','SUN']];
+  const grid=document.getElementById('weekDaysGrid'); grid.innerHTML='';
+  dayNames.forEach(([key,label],idx)=>{
+    const col=document.createElement('div'); col.className='week-day-col';
+    const dn=document.createElement('div'); dn.className='dname'; dn.textContent=label;
+    dn.style.cursor='pointer'; dn.style.color='var(--work)';
+    dn.onclick=()=>{
+      const d=new Date(weekViewDate); d.setDate(weekViewDate.getDate()+idx);
+      selectedDate=stripTime(d);
+      document.querySelector('.tab-btn[data-view="today"]').click();
+      loadDay();
+    };
+    const pills=document.createElement('div'); pills.className='type-pills';
+    const dayIso = weekDayTypes[idx] ? weekDayTypes[idx].iso : null;
+    const curType = weekDayTypes[idx] ? weekDayTypes[idx].dayType : null;
+    ['free','focus','buffer'].forEach(t=>{
+      const p=document.createElement('div');
+      p.className='type-pill'+(curType===t? ' sel-'+t:'');
+      p.textContent=t;
+      p.onclick=async ()=>{
+        await setDayType(dayIso, t);
+        renderWeek();
+        if(isoDate(selectedDate)===dayIso) renderDay();
+      };
+      pills.appendChild(p);
+    });
+    col.appendChild(dn); col.appendChild(pills); grid.appendChild(col);
+  });
+
+  const cl=document.getElementById('crucialList'); cl.innerHTML='';
+  weekData.crucial.forEach((item,i)=>{
+    const row=document.createElement('div'); row.className='task-row';
+    const chk=document.createElement('div'); chk.className='chk'+(item.done?' checked':'');
+    chk.onclick=()=>{ item.done=!item.done; renderWeek(); saveWeekDebounced(); };
+    const inp=document.createElement('input'); inp.type='text'; inp.value=item.text; inp.placeholder='Result #'+(i+1);
+    if(item.done) inp.classList.add('done');
+    inp.oninput=()=>{ item.text=inp.value; saveWeekDebounced(); };
+    const why=document.createElement('input'); why.type='text'; why.value=item.why||''; why.placeholder='why it matters'; why.style.cssText='max-width:140px;font-style:italic;color:var(--muted);font-size:12px;border:none;background:transparent;font-family:inherit;';
+    why.oninput=()=>{ item.why=why.value; saveWeekDebounced(); };
+    row.appendChild(chk); row.appendChild(inp); row.appendChild(why); cl.appendChild(row);
+  });
+  document.getElementById('addCrucialBtn').onclick=()=>{
+    weekData.crucial.push({text:'',why:'',done:false}); renderWeek(); saveWeekDebounced();
+  };
+
+  const ml=document.getElementById('movesList'); ml.innerHTML='';
+  CATS.forEach(cat=>{
+    const row=document.createElement('div'); row.className='moves-row';
+    const dot=document.createElement('span'); dot.className='cat-dot'; dot.style.background='var(--'+cat.id+')';
+    const name=document.createElement('span'); name.className='catname'; name.textContent=cat.label;
+    const inp=document.createElement('input'); inp.type='text'; inp.value=weekData.moves[cat.id]||''; inp.placeholder='top move…';
+    inp.oninput=()=>{ weekData.moves[cat.id]=inp.value; saveWeekDebounced(); };
+    row.appendChild(dot); row.appendChild(name); row.appendChild(inp); ml.appendChild(row);
+  });
+
+  const wwEl=document.getElementById('whatWorked'); if(document.activeElement!==wwEl) wwEl.value=weekData.whatWorked;
+  wwEl.oninput=()=>{ weekData.whatWorked=wwEl.value; saveWeekDebounced(); };
+  const wcEl=document.getElementById('whatChange'); if(document.activeElement!==wcEl) wcEl.value=weekData.whatChange;
+  wcEl.oninput=()=>{ weekData.whatChange=wcEl.value; saveWeekDebounced(); };
+
+  const fb=document.getElementById('farmBody'); fb.innerHTML='';
+  weekData.farm.forEach((p,i)=>{
+    const tr=document.createElement('tr');
+    const tdChk=document.createElement('td'); tdChk.style.width='24px';
+    const chk=document.createElement('div'); chk.className='chk'+(p.done?' checked':'');
+    chk.onclick=()=>{ p.done=!p.done; renderWeek(); saveWeekDebounced(); };
+    tdChk.appendChild(chk);
+    const tdName=document.createElement('td'); const inName=document.createElement('input'); inName.type='text'; inName.value=p.name; inName.placeholder='name';
+    inName.oninput=()=>{ p.name=inName.value; saveWeekDebounced(); }; tdName.appendChild(inName);
+    const tdWhy=document.createElement('td'); const inWhy=document.createElement('input'); inWhy.type='text'; inWhy.value=p.why; inWhy.placeholder='why';
+    inWhy.oninput=()=>{ p.why=inWhy.value; saveWeekDebounced(); }; tdWhy.appendChild(inWhy);
+    const tdMove=document.createElement('td'); const inMove=document.createElement('input'); inMove.type='text'; inMove.value=p.move; inMove.placeholder="this week's move";
+    inMove.oninput=()=>{ p.move=inMove.value; saveWeekDebounced(); }; tdMove.appendChild(inMove);
+    const tdDel=document.createElement('td'); const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ weekData.farm.splice(i,1); renderWeek(); saveWeekDebounced(); }; tdDel.appendChild(del);
+    tr.appendChild(tdChk); tr.appendChild(tdName); tr.appendChild(tdWhy); tr.appendChild(tdMove); tr.appendChild(tdDel);
+    fb.appendChild(tr);
+  });
+  document.getElementById('addFarmBtn').onclick=()=>{
+    weekData.farm.push({name:'',why:'',move:'',done:false}); renderWeek(); saveWeekDebounced();
+  };
+
+  const wlEl=document.getElementById('weekLinger'); if(document.activeElement!==wlEl) wlEl.value=weekData.linger;
+  wlEl.oninput=()=>{ weekData.linger=wlEl.value; saveWeekDebounced(); };
+
+  renderMeals();
+}
+
+/* ---- Meal planner + shopping list (part of Week view) ---- */
+/* Renders just the selected date's row from the same meals record the Week tab
+   uses — editing here writes to the same storage key, so it's always in sync
+   with the Week tab's Meal Planner for that week. */
+function renderDayMealsTable(){
+  const container = document.getElementById('dayMealsTable');
+  if(!container) return;
+  container.innerHTML='';
+  const dayKey = shortDayKeyFor(selectedDate);
+  const rowLabels = {breakfast:'Breakfast', lunch:'Lunch', dinner:'Dinner', snacks:'Snacks'};
+
+  const table=document.createElement('table'); table.className='day-meal-table';
+  const tbody=document.createElement('tbody');
+  MEAL_ROWS.forEach(rowKey=>{
+    const tr=document.createElement('tr');
+    const tdLabel=document.createElement('td'); tdLabel.className='day-meal-label'; tdLabel.textContent=rowLabels[rowKey];
+    const tdInput=document.createElement('td');
+    const ta=document.createElement('textarea');
+    ta.value = (dayMealsData.meals[dayKey] && dayMealsData.meals[dayKey][rowKey]) || '';
+    ta.placeholder='…';
+    ta.oninput=()=>{
+      if(!dayMealsData.meals[dayKey]) dayMealsData.meals[dayKey]={breakfast:'',lunch:'',dinner:'',snacks:''};
+      dayMealsData.meals[dayKey][rowKey]=ta.value;
+      saveDayMealsDebounced();
+    };
+    tdInput.appendChild(ta);
+    tr.appendChild(tdLabel); tr.appendChild(tdInput);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+function renderMeals(){
+  const body=document.getElementById('mealBody'); body.innerHTML='';
+  const rowLabels={breakfast:'Breakfast',lunch:'Lunch',dinner:'Dinner',snacks:'Snacks'};
+  MEAL_ROWS.forEach(rowKey=>{
+    const tr=document.createElement('tr');
+    const tdLabel=document.createElement('td'); tdLabel.className='rowlabel'; tdLabel.textContent=rowLabels[rowKey];
+    tr.appendChild(tdLabel);
+    WEEK_DAY_KEYS.forEach(dayKey=>{
+      const td=document.createElement('td');
+      const ta=document.createElement('textarea');
+      ta.value = mealsData.meals[dayKey][rowKey] || '';
+      ta.placeholder='…';
+      ta.oninput=()=>{ mealsData.meals[dayKey][rowKey]=ta.value; saveMealsDebounced(); };
+      td.appendChild(ta);
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+
+  const sl=document.getElementById('shoppingList'); sl.innerHTML='';
+  if(mealsData.shopping.length===0){
+    const hint=document.createElement('div'); hint.className='empty-hint'; hint.textContent='No items yet.';
+    sl.appendChild(hint);
+  }
+  mealsData.shopping.forEach((item,i)=>{
+    const val = typeof item==='string' ? {text:item,done:false} : item;
+    mealsData.shopping[i]=val;
+    const row=document.createElement('div'); row.className='task-row';
+    const chk=document.createElement('div'); chk.className='chk'+(val.done?' checked':'');
+    chk.onclick=()=>{ val.done=!val.done; renderMeals(); saveMealsDebounced(); };
+    const inp=document.createElement('input'); inp.type='text'; inp.value=val.text; inp.placeholder='item…';
+    if(val.done) inp.classList.add('done');
+    inp.oninput=()=>{ val.text=inp.value; saveMealsDebounced(); };
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ mealsData.shopping.splice(i,1); renderMeals(); saveMealsDebounced(); };
+    row.appendChild(chk); row.appendChild(inp); row.appendChild(del); sl.appendChild(row);
+  });
+  document.getElementById('addShopBtn').onclick=()=>{
+    mealsData.shopping.push({text:'',done:false}); renderMeals(); saveMealsDebounced();
+  };
+}
+
+/* ================= QUARTER VIEW ================= */
+function renderQuarterTab(){
+  const {qNum, year} = calendarQuarterOf(quarterViewDate);
+  document.getElementById('navQuarterLabel').textContent = 'Q' + qNum + ' ' + year;
+  document.getElementById('qQuarter').textContent = browsedQuarterData.quarter;
+  document.getElementById('qYear').textContent = browsedQuarterData.year;
+
+  document.getElementById('freeTarget').value = browsedQuarterData.freeTarget;
+  document.getElementById('bufferTarget').value = browsedQuarterData.bufferTarget;
+  document.getElementById('focusTarget').value = browsedQuarterData.focusTarget;
+  document.getElementById('freeTarget').oninput=(e)=>{ browsedQuarterData.freeTarget=e.target.value; saveBrowsedQuarterDebounced(); };
+  document.getElementById('bufferTarget').oninput=(e)=>{ browsedQuarterData.bufferTarget=e.target.value; saveBrowsedQuarterDebounced(); };
+  document.getElementById('focusTarget').oninput=(e)=>{ browsedQuarterData.focusTarget=e.target.value; saveBrowsedQuarterDebounced(); };
+
+  renderEditableList('proudList','proud');
+  renderEditableList('confidentList','confident');
+  renderEditableList('excitedList','excited');
+  document.querySelectorAll('.add-btn[data-list]').forEach(btn=>{
+    btn.onclick=()=>{
+      const key=btn.dataset.list;
+      browsedQuarterData[key].push('');
+      renderQuarterTab(); saveBrowsedQuarterDebounced();
+    };
+  });
+
+  const ml=document.getElementById('multiplierList'); ml.innerHTML='';
+  browsedQuarterData.multipliers.forEach((m,i)=>{
+    const row=document.createElement('div'); row.className='mult-row';
+    const num=document.createElement('div'); num.className='mult-num'; num.textContent=i+1;
+    const body=document.createElement('div'); body.className='mult-body';
+    const g=document.createElement('input'); g.className='mgoal'; g.type='text'; g.value=m.goal; g.placeholder='Achievement…';
+    g.oninput=()=>{ m.goal=g.value; saveBrowsedQuarterDebounced(); };
+    const w=document.createElement('input'); w.className='mwhy'; w.type='text'; w.value=m.why; w.placeholder='Why it matters…';
+    w.oninput=()=>{ m.why=w.value; saveBrowsedQuarterDebounced(); };
+    body.appendChild(g); body.appendChild(w);
+    row.appendChild(num); row.appendChild(body); ml.appendChild(row);
+  });
+
+  const qlEl=document.getElementById('quarterLinger');
+  if(document.activeElement!==qlEl) qlEl.value = browsedQuarterData.linger;
+  qlEl.oninput=()=>{ browsedQuarterData.linger=qlEl.value; saveBrowsedQuarterDebounced(); };
+}
+
+function renderEditableList(elId, key){
+  const ul=document.getElementById(elId); ul.innerHTML='';
+  browsedQuarterData[key].forEach((val,i)=>{
+    const li=document.createElement('li');
+    const inp=document.createElement('input'); inp.type='text'; inp.value=val; inp.placeholder='…';
+    inp.oninput=()=>{ browsedQuarterData[key][i]=inp.value; saveBrowsedQuarterDebounced(); };
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ browsedQuarterData[key].splice(i,1); renderQuarterTab(); saveBrowsedQuarterDebounced(); };
+    li.appendChild(inp); li.appendChild(del); ul.appendChild(li);
+  });
+}
+
+init();
+</script>
+</body>
+</html>
