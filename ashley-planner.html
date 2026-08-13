@@ -726,9 +726,6 @@
           <div class="field-inline">Week <span id="weekWeekNum">1 / 13</span> · <span id="weekOfLabel"></span></div>
         </div>
       </div>
-      <div class="field-inline" style="margin-bottom:10px;">This week moves multiplier #
-        <input type="text" id="weekMultiplier" style="width:30px;text-align:center;">
-      </div>
 
       <div class="section-bar">Set the Shape <span class="sub">rest days first</span></div>
       <div class="week-days" id="weekDaysGrid"></div>
@@ -2079,10 +2076,6 @@ function renderWeek(){
   document.getElementById('weekWeekNum').textContent = weekLabel(weekViewDate);
   document.getElementById('weekOfLabel').textContent = fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
   document.getElementById('mealsWeekOfLabel').textContent = 'Week of ' + fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
-
-  const multInp = document.getElementById('weekMultiplier');
-  multInp.value = weekData.multiplier;
-  multInp.oninput = ()=>{ weekData.multiplier = multInp.value; saveWeekDebounced(); };
 
   const dayNames=[['mon','MON'],['tue','TUE'],['wed','WED'],['thu','THU'],['fri','FRI'],['sat','SAT'],['sun','SUN']];
   const grid=document.getElementById('weekDaysGrid'); grid.innerHTML='';
