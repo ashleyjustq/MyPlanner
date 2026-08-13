@@ -558,6 +558,18 @@
     padding:1px 4px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;
     white-space:nowrap;
   }
+  /* Desktop / iPad: scale the grid up to match Today's Shape's text size.
+     Mobile (below 641px) keeps the compact sizing above untouched. */
+  @media(min-width:641px){
+    .month-table{font-size:14px;min-width:820px;}
+    .month-table th{font-size:12px;padding:9px 4px;}
+    .month-table th.month-wk-col{width:44px;}
+    .month-table td{padding:7px 8px;height:132px;}
+    .month-table td.wk-cell{font-size:13px;}
+    .month-day-num{font-size:15px;margin-bottom:4px;}
+    .month-day-num.is-today{width:24px;height:24px;line-height:24px;font-size:13.5px;}
+    .month-event{font-size:12.5px;padding:3px 7px;margin-top:3px;border-radius:5px;}
+  }
 
   /* Day view's single-day meal table (mirrors the week table, one column) */
   .day-meal-table{width:100%;border-collapse:collapse;font-size:12px;}
