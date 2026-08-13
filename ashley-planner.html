@@ -756,7 +756,7 @@
 
       <div class="section-bar">Farm List <span class="sub">relationships to focus on</span></div>
       <table class="farm-table" id="farmTable">
-        <thead><tr><th style="width:26%">Person</th><th style="width:37%">Why</th><th>This week's move</th><th></th></tr></thead>
+        <thead><tr><th style="width:24px"></th><th>Name</th><th>This week's move</th><th></th></tr></thead>
         <tbody id="farmBody"></tbody>
       </table>
       <div class="add-row"><button class="add-btn" id="addFarmBtn">+ add person</button></div>
@@ -2153,13 +2153,11 @@ function renderWeek(){
     tdChk.appendChild(chk);
     const tdName=document.createElement('td'); const inName=document.createElement('input'); inName.type='text'; inName.value=p.name; inName.placeholder='name';
     inName.oninput=()=>{ p.name=inName.value; saveWeekDebounced(); }; tdName.appendChild(inName);
-    const tdWhy=document.createElement('td'); const inWhy=document.createElement('input'); inWhy.type='text'; inWhy.value=p.why; inWhy.placeholder='why';
-    inWhy.oninput=()=>{ p.why=inWhy.value; saveWeekDebounced(); }; tdWhy.appendChild(inWhy);
     const tdMove=document.createElement('td'); const inMove=document.createElement('input'); inMove.type='text'; inMove.value=p.move; inMove.placeholder="this week's move";
     inMove.oninput=()=>{ p.move=inMove.value; saveWeekDebounced(); }; tdMove.appendChild(inMove);
     const tdDel=document.createElement('td'); const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
     del.onclick=()=>{ weekData.farm.splice(i,1); renderWeek(); saveWeekDebounced(); }; tdDel.appendChild(del);
-    tr.appendChild(tdChk); tr.appendChild(tdName); tr.appendChild(tdWhy); tr.appendChild(tdMove); tr.appendChild(tdDel);
+    tr.appendChild(tdChk); tr.appendChild(tdName); tr.appendChild(tdMove); tr.appendChild(tdDel);
     fb.appendChild(tr);
   });
   document.getElementById('addFarmBtn').onclick=()=>{
