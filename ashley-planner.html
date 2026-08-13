@@ -770,12 +770,12 @@
 
         <div>
           <div class="section-bar" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>HubSpot Tasks</span>
+            <span>Planned Tasks</span>
             <button class="sync-btn" id="syncHubspotBtn">↻ Sync</button>
           </div>
           <div id="hubspotTasksList"></div>
 
-          <div class="section-bar">Other Tasks</div>
+          <div class="section-bar">New Tasks</div>
           <div id="otherTasksList"></div>
           <div class="add-row">
             <button class="add-btn" id="addTaskBtn">+ add task</button>
@@ -1944,6 +1944,7 @@ async function init(){
 
   // Push-to-HubSpot modal
   const projectSelect = document.getElementById('pushProjectSelect');
+  projectSelect.innerHTML = '<option value="">— none —</option>'; // reset first — init() can run more than once
   PUSH_PROJECT_OPTIONS.forEach(opt=>{
     const o=document.createElement('option'); o.value=opt; o.textContent=opt;
     projectSelect.appendChild(o);
@@ -2408,7 +2409,7 @@ function renderWeekdayDay(){
 
   const ot = document.getElementById('otherTasksList'); ot.innerHTML='';
   if(dayData.otherTasks.length===0){
-    const hint=document.createElement('div'); hint.className='empty-hint'; hint.textContent='No other tasks yet.';
+    const hint=document.createElement('div'); hint.className='empty-hint'; hint.textContent='No new tasks yet.';
     ot.appendChild(hint);
   }
   dayData.otherTasks.forEach((t,i)=>{
@@ -2422,7 +2423,11 @@ function renderWeekdayDay(){
     hbBtn.textContent = t.hubspot ? '✓' : '→ Push';
     if(t.hubspot) hbBtn.disabled=true;
     hbBtn.onclick=()=>{
-      openPushModal(t.text, hbBtn, ()=>{ t.hubspot=true; saveDayDebounced(); });
+      openPushModal(t.text, hbBtn, ()=>{
+        dayData.otherTasks.splice(i,1); // pushed successfully — remove so it's not duplicated here and in Planned Tasks
+        renderWeekdayDay();
+        saveDayDebounced();
+      });
     };
     const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
     del.onclick=()=>{ dayData.otherTasks.splice(i,1); renderWeekdayDay(); saveDayDebounced(); };
