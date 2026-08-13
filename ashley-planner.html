@@ -1405,44 +1405,23 @@ async function syncMonthAllDayEvents(year, monthIndex){
 }
 
 /* ---------------- HubSpot task list sync (on-demand, read-only) ----------------
-   Same mechanism again: pulls your real HubSpot tasks due on one specific date,
-   including whether each is done. Doesn't write anything back — separate from
-   the "→ HubSpot" push buttons on Other Tasks, which go the other direction. */
+   Calls a Supabase Edge Function that holds your HubSpot token server-side and
+   relays the request — the token never touches the browser. Pulls real tasks
+   due on one specific date, including whether each is done. Doesn't write
+   anything back — separate from the "→ HubSpot" push buttons on Other Tasks,
+   which go the other direction. */
 async function syncHubspotTasks(dateIso, btnEl){
   btnEl.disabled = true;
   btnEl.textContent = 'Syncing…';
   try{
-    const prompt = 'List all HubSpot tasks assigned to owner ID ' + HUBSPOT_OWNER_ID + ' whose due date (hs_timestamp) falls on ' + dateIso + ' — that exact day only, not the surrounding week. '
-      + 'Include tasks regardless of status (both completed and not completed). '
-      + 'For each task, explicitly check the hs_task_status property value returned by HubSpot. '
-      + 'Reply with ONLY a JSON array and nothing else — no explanation, no markdown code fences. '
-      + 'Exact format: [{"subject":"Task name","done":true,"priority":"HIGH/MEDIUM/LOW or empty string"}] '
-      + '(use real JSON booleans true/false, not strings). '
-      + 'Set "done" to the boolean true ONLY when that task\'s actual hs_task_status property equals exactly "COMPLETED". '
-      + 'Set "done" to false for every other status (NOT_STARTED, IN_PROGRESS, WAITING, DEFERRED, or anything else). '
-      + 'Do not guess — read the actual hs_task_status value for each task before deciding. '
-      + 'If there are no tasks due that day, reply with exactly: []';
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
-        messages: [{ role:'user', content: prompt }],
-        mcp_servers: [{ type:'url', url:'https://mcp.hubspot.com/anthropic', name:'hubspot-mcp' }]
-      })
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
-    const cleaned = text.replace(/```json/gi,'').replace(/```/g,'').trim();
-    const tasks = JSON.parse(cleaned);
-    if(!Array.isArray(tasks)) throw new Error('Unexpected response shape');
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', { body: { date: dateIso } });
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    if(!Array.isArray(data)) throw new Error('Unexpected response shape');
 
     btnEl.textContent = '✓ Synced';
     setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
-    return tasks;
+    return data;
   }catch(e){
     console.error('HubSpot task sync failed', e);
     btnEl.disabled = false;
