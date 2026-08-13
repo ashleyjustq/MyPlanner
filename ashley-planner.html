@@ -828,6 +828,15 @@
         </div>
       </div>
 
+      <div class="legend">
+        <b>Color code</b>
+        <span class="legend-item"><span class="dot" style="background:var(--family)"></span>family</span>
+        <span class="legend-item"><span class="dot" style="background:var(--personal)"></span>personal</span>
+        <span class="legend-item"><span class="dot" style="background:var(--work)"></span>work</span>
+        <span class="legend-item"><span class="dot" style="background:var(--church)"></span>church</span>
+        <span class="legend-item"><span class="dot" style="background:var(--food)"></span>home</span>
+      </div>
+
       <div class="month-grid-wrap">
         <table class="month-table" id="monthTable">
           <thead>
@@ -1339,7 +1348,7 @@ async function syncMonthAllDayEvents(year, monthIndex){
       for(let d=new Date(startD); d<endD; d.setDate(d.getDate()+1)){
         const iso = isoDate(d);
         if(!map[iso]) map[iso]=[];
-        map[iso].push(ev.summary || 'Untitled');
+        map[iso].push({ title: ev.summary || 'Untitled', colorId: ev.colorId || null });
       }
     });
     lastMonthSyncError = null;
@@ -2454,9 +2463,14 @@ function renderMonthTab(){
         td.appendChild(numEl);
 
         const events = (monthData.allDayEvents && monthData.allDayEvents[iso]) || [];
-        events.forEach(title=>{
+        events.forEach(ev=>{
           const evEl = document.createElement('div');
           evEl.className = 'month-event';
+          // Handle both the new {title,colorId} shape and any older cached
+          // data that was saved before colors were tracked (plain strings).
+          const title = (typeof ev === 'string') ? ev : ev.title;
+          const colorId = (typeof ev === 'string') ? null : ev.colorId;
+          evEl.style.background = categoryColorFor(colorId);
           evEl.textContent = title;
           td.appendChild(evEl);
         });
