@@ -951,8 +951,8 @@
       <div class="rest-hint" id="weekTasksHint" style="margin-bottom:6px;">Planned tasks from HubSpot for this week.</div>
       <div class="meal-grid-wrap">
         <table class="meal-table" id="weekTasksTable">
-          <thead><tr><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th><th>SUN</th></tr></thead>
-          <tbody><tr id="weekTasksRow"></tr></tbody>
+          <thead><tr><th></th><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th><th>SUN</th></tr></thead>
+          <tbody id="weekTasksBody"></tbody>
         </table>
       </div>
     </div>
@@ -1621,13 +1621,15 @@ async function syncHubspotTasks(dateIso, btnEl){
 }
 
 /* Same idea, but for the whole week (Task Planner on the Week tab). Asks the
-   Edge Function for everything due Mon–Sun and groups it by day client-side. */
+   Edge Function for everything due Mon–Sun and groups it by day client-side.
+   Note: only weekMonIso is actually needed now (the function derives the
+   rest); weekSunIso is kept as a param for call-site clarity but unused. */
 let lastWeekTasksSyncError = null;
 async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl){
   if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'listWeek', weekStart: weekMonIso, weekEnd: weekSunIso }
+      body: { action:'listWeek', weekStart: weekMonIso }
     });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
@@ -1636,7 +1638,7 @@ async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl){
     const grouped = {mon:[],tue:[],wed:[],thu:[],fri:[],sat:[],sun:[]};
     data.forEach(t=>{
       if(t.dueDayKey && grouped.hasOwnProperty(t.dueDayKey)){
-        grouped[t.dueDayKey].push({ id:t.id, subject:t.subject, done:t.done });
+        grouped[t.dueDayKey].push({ id:t.id, subject:t.subject, done:t.done, estimatedTime:t.estimatedTime });
       }
     });
 
@@ -2748,13 +2750,15 @@ function renderDayMealsTable(){
   container.appendChild(table);
 }
 
-/* Renders the Task Planner row: one cell per weekday, each holding a small
-   stacked checklist of that day's HubSpot tasks. Checkboxes write completion
-   status back to HubSpot immediately, same as the Day tab's Planned Tasks. */
+/* Renders the Task Planner: one row of per-day task checklists (completed
+   tasks show green + faded, same as the Day tab's Planned Tasks; not-started
+   and in-progress both show as an open checkbox — status isn't filtered on
+   the way in, so all three show up), plus a second row totaling estimated
+   time per day across every task that day, done or not. */
 function renderWeekTasksTable(){
-  const row = document.getElementById('weekTasksRow');
-  if(!row) return;
-  row.innerHTML='';
+  const body = document.getElementById('weekTasksBody');
+  if(!body) return;
+  body.innerHTML='';
 
   const hintEl = document.getElementById('weekTasksHint');
   if(hintEl){
@@ -2765,6 +2769,11 @@ function renderWeekTasksTable(){
   }
 
   const byDay = weekData.hubspotTasksByDay || {};
+
+  const taskRow = document.createElement('tr');
+  const taskLabelTd = document.createElement('td'); taskLabelTd.className='rowlabel'; taskLabelTd.textContent='Tasks';
+  taskRow.appendChild(taskLabelTd);
+
   WEEK_DAY_KEYS.forEach(dayKey=>{
     const td=document.createElement('td'); td.className='week-task-cell';
     const tasks = byDay[dayKey] || [];
@@ -2792,8 +2801,22 @@ function renderWeekTasksTable(){
       item.appendChild(chk); item.appendChild(label);
       td.appendChild(item);
     });
-    row.appendChild(td);
+    taskRow.appendChild(td);
   });
+  body.appendChild(taskRow);
+
+  const totalsRow = document.createElement('tr');
+  const totalsLabelTd = document.createElement('td'); totalsLabelTd.className='rowlabel'; totalsLabelTd.textContent='Est. Time';
+  totalsRow.appendChild(totalsLabelTd);
+  WEEK_DAY_KEYS.forEach(dayKey=>{
+    const td=document.createElement('td'); td.className='week-task-cell';
+    td.style.cssText='text-align:center;vertical-align:middle;font-weight:700;font-size:12px;color:var(--ink);';
+    const tasks = byDay[dayKey] || [];
+    const total = tasks.reduce((sum,t)=> sum + (parseFloat(t.estimatedTime)||0), 0);
+    td.textContent = total>0 ? (Math.round(total*100)/100)+'h' : '—';
+    totalsRow.appendChild(td);
+  });
+  body.appendChild(totalsRow);
 }
 
 function renderMeals(){
