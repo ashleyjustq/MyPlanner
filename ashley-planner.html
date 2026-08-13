@@ -1411,21 +1411,21 @@ async function syncMonthAllDayEvents(year, monthIndex){
    anything back — separate from the "→ HubSpot" push buttons on Other Tasks,
    which go the other direction. */
 async function syncHubspotTasks(dateIso, btnEl){
-  btnEl.disabled = true;
-  btnEl.textContent = 'Syncing…';
+  if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', { body: { date: dateIso } });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     if(!Array.isArray(data)) throw new Error('Unexpected response shape');
 
-    btnEl.textContent = '✓ Synced';
-    setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
+    if(btnEl){
+      btnEl.textContent = '✓ Synced';
+      setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
+    }
     return data;
   }catch(e){
     console.error('HubSpot task sync failed', e);
-    btnEl.disabled = false;
-    btnEl.textContent = '⚠ Retry';
+    if(btnEl){ btnEl.disabled = false; btnEl.textContent = '⚠ Retry'; }
     return null;
   }
 }
@@ -1813,11 +1813,12 @@ async function loadDay(){
 
   renderDay();
 
-  // Auto-refresh the calendar timeline in the background — no tap needed.
-  // Fires after renderDay() so the rest of the page is already usable while
-  // this loads; it repaints just the timeline once it resolves.
+  // Auto-refresh the calendar timeline and HubSpot tasks in the background —
+  // no tap needed. Fires after renderDay() so the rest of the page is already
+  // usable while these load; each just repaints its own section once it resolves.
   if(!isWeekendDate(selectedDate)){
     autoSyncCalendar(iso);
+    autoSyncHubspot(iso);
   }
 }
 async function autoSyncCalendar(iso){
@@ -1830,6 +1831,15 @@ async function autoSyncCalendar(iso){
     saveDayDebounced();
   }
   renderCalendarTimeline();
+}
+async function autoSyncHubspot(iso){
+  const tasks = await syncHubspotTasks(iso, null);
+  if(isoDate(selectedDate) !== iso) return; // navigated away before this resolved
+  if(tasks !== null){
+    dayData.hubspotTasks = tasks;
+    saveDayDebounced();
+  }
+  renderHubspotTasksList();
 }
 async function loadWeek(){
   const iso = isoDate(weekViewDate);
@@ -2110,7 +2120,7 @@ function renderHubspotTasksList(){
   const tasks = dayData.hubspotTasks;
   if(!tasks || tasks.length===0){
     const hint=document.createElement('div'); hint.className='empty-hint';
-    hint.textContent = tasks===null ? 'Not synced yet — tap "Sync".' : 'No HubSpot tasks due today.';
+    hint.textContent = tasks===null ? 'Loading…' : 'No HubSpot tasks due today.';
     container.appendChild(hint);
     return;
   }
