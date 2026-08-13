@@ -123,6 +123,8 @@
   }
   .card-title{font-size:22px;font-weight:600;color:var(--ink);}
   .card-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .header-badges{display:flex;gap:14px;align-items:baseline;}
+  .header-badge{font-size:16px;font-weight:700;color:var(--navy);}
   .badge{
     background:var(--navy);
     color:#fff;
@@ -628,7 +630,6 @@
       <div class="card-title-row">
         <div>
           <div class="card-title" id="todayDayName">Tuesday</div>
-          <div class="field-inline" style="margin-top:4px;">Week <span id="todayWeekNum">—</span></div>
         </div>
         <div style="display:flex;gap:6px;">
           <button class="type-pill" data-daytype="free" id="pill-free">free</button>
@@ -747,9 +748,10 @@
 
     <div class="card">
       <div class="card-title-row">
-        <div>
-          <div class="card-title">Weekly Plan</div>
-          <div class="field-inline">Week <span id="weekWeekNum">1 / 13</span> · <span id="weekOfLabel"></span></div>
+        <div class="card-title">This Week</div>
+        <div class="header-badges">
+          <span class="header-badge" id="weekWeekNum">1 / 13</span>
+          <span class="header-badge" id="weekOfLabel"></span>
         </div>
       </div>
 
@@ -822,9 +824,9 @@
     <div class="card">
       <div class="card-title-row">
         <div class="card-title">Monthly Calendar</div>
-        <div style="display:flex;gap:14px;">
-          <div class="field-inline">Month <span id="monthLabelField">—</span></div>
-          <div class="field-inline">Year <span id="yearLabelField">—</span></div>
+        <div class="header-badges">
+          <span class="header-badge" id="monthLabelField">—</span>
+          <span class="header-badge" id="yearLabelField">—</span>
         </div>
       </div>
 
@@ -875,9 +877,9 @@
     <div class="card">
       <div class="card-title-row">
         <div class="card-title">This Quarter</div>
-        <div style="display:flex;gap:14px;">
-          <div class="field-inline">Quarter <span id="qQuarter">Q3</span></div>
-          <div class="field-inline">Year <span id="qYear">2026</span></div>
+        <div class="header-badges">
+          <span class="header-badge" id="qQuarter">Q3</span>
+          <span class="header-badge" id="qYear">2026</span>
         </div>
       </div>
 
@@ -2103,7 +2105,6 @@ function renderHubspotTasksList(){
 
 function renderWeekdayDay(){
   document.getElementById('todayDayName').textContent = selectedDate.toLocaleDateString('en-US',{weekday:'long'});
-  document.getElementById('todayWeekNum').textContent = weekLabel(selectedDate);
 
   ['free','focus','buffer'].forEach(t=>{
     const p = document.getElementById('pill-'+t);
