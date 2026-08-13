@@ -2190,6 +2190,20 @@ function taskIsDone(t){
   return false;
 }
 
+/* Writes a task's completion status back to HubSpot via the Edge Function.
+   Returns true on success, false on failure (caller handles UI rollback). */
+async function updateHubspotTaskStatus(taskId, done){
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', { body: { action:'update', taskId, done } });
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    return true;
+  }catch(e){
+    console.error('HubSpot task update failed', e);
+    return false;
+  }
+}
+
 function renderHubspotTasksList(){
   const container = document.getElementById('hubspotTasksList');
   container.innerHTML='';
@@ -2203,10 +2217,36 @@ function renderHubspotTasksList(){
   tasks.forEach(t=>{
     const isDone = taskIsDone(t);
     const row=document.createElement('div'); row.className='task-row';
-    const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':'');
+    const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':''); chk.style.cursor='pointer';
     const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);';
     label.textContent = t.subject||'Untitled task';
     if(isDone){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
+
+    const applyDoneStyle = (done)=>{
+      chk.className = 'chk'+(done?' checked':'');
+      label.style.color = done?'var(--muted)':'';
+      label.style.opacity = done?'0.75':'1';
+    };
+
+    chk.onclick = async ()=>{
+      if(!t.id){
+        alert('Can\'t update this task — it was synced before task IDs were tracked. Tap Sync to refresh, then try again.');
+        return;
+      }
+      const newDone = !taskIsDone(t);
+      applyDoneStyle(newDone); // optimistic — updates instantly, no waiting on HubSpot's round trip
+      chk.style.opacity = '0.6';
+      const ok = await updateHubspotTaskStatus(t.id, newDone);
+      chk.style.opacity = '1';
+      if(ok){
+        t.done = newDone;
+        saveDayDebounced();
+      }else{
+        applyDoneStyle(taskIsDone(t)); // revert to the pre-click state
+        alert('Could not update this task in HubSpot. Check your connection and try again.');
+      }
+    };
+
     row.appendChild(chk); row.appendChild(label);
     container.appendChild(row);
   });
