@@ -1367,16 +1367,23 @@ async function syncMonthAllDayEvents(year, monthIndex){
       const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers: authHeader });
       if(listRes.ok){
         const listData = await listRes.json();
+        console.log('[Month sync] your calendars:', (listData.items||[]).map(c=>({summary:c.summary, id:c.id})));
         const bdayCal = (listData.items||[]).find(c=>
           /birthday/i.test(c.summary||'') || /contacts@group\.v\.calendar\.google\.com/i.test(c.id||'')
         );
+        console.log('[Month sync] birthday calendar match:', bdayCal ? bdayCal.summary+' / '+bdayCal.id : 'NONE FOUND');
         if(bdayCal){
           const bdayRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(bdayCal.id)+'/events?'+params.toString(), { headers: authHeader });
           if(bdayRes.ok){
             const bdayData = await bdayRes.json();
+            console.log('[Month sync] birthday calendar events:', (bdayData.items||[]).map(e=>({summary:e.summary, start:e.start})));
             addEventsToMap(bdayData.items, 'birthday');
+          }else{
+            console.error('[Month sync] birthday calendar events fetch failed:', bdayRes.status, await bdayRes.text().catch(()=> ''));
           }
         }
+      }else{
+        console.error('[Month sync] calendarList fetch failed:', listRes.status);
       }
     }catch(bErr){
       console.error('Birthdays calendar fetch failed (non-fatal)', bErr);
