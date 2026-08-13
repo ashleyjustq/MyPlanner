@@ -553,11 +553,12 @@
 
   /* Meal table */
   .meal-grid-wrap{overflow-x:auto;margin-bottom:6px;}
-  .meal-table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:640px;}
+  .meal-table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:640px;table-layout:fixed;}
   .meal-table th{
     background:var(--navy);color:#fff;font-size:10px;text-transform:uppercase;
     padding:6px 4px;text-align:center;letter-spacing:.03em;
   }
+  .meal-table th:first-child{width:20px;}
   .meal-table td{border:1px solid var(--border);padding:3px;vertical-align:top;}
   .meal-table td.rowlabel{
     background:#F5F4F1;font-weight:700;font-size:9.5px;text-transform:uppercase;
@@ -1229,7 +1230,9 @@ async function handleSession(session){
     currentUser = session.user;
     authGateEl.style.display='none';
     appRootEl.style.display='block';
-    init();
+    showLoadingOverlay();
+    await init();
+    hideLoadingOverlay();
   }else if(session && session.user){
     await sb.auth.signOut();
     currentUser = null;
