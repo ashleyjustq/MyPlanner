@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ashley's Planner">
-<title>Ashley's Planner</title>
+<title>Ashley's Quarterly Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -805,20 +805,50 @@ async function initAuth(){
   document.getElementById('googleSignInBtn').onclick = doGoogleSignIn;
   document.getElementById('googleTryAgainBtn').onclick = doGoogleSignIn;
 
+  // Surface any error Google/Supabase put in the redirect URL instead of
+  // silently falling back to the sign-in screen — this is what "looping
+  // with no explanation" almost always turns out to be.
+  const urlError = getUrlAuthError();
+  if(urlError){
+    document.getElementById('authCardLoading').style.display='none';
+    document.getElementById('authCardSignIn').style.display='block';
+    let errEl = document.getElementById('authUrlError');
+    if(!errEl){
+      errEl = document.createElement('div');
+      errEl.id = 'authUrlError';
+      errEl.className = 'auth-denied-email';
+      document.getElementById('authCardSignIn').insertBefore(errEl, document.getElementById('googleSignInBtn'));
+    }
+    errEl.textContent = urlError;
+    history.replaceState(null, '', window.location.pathname); // clean the URL so it doesn't re-trigger on refresh
+    return;
+  }
+
   const { data:{ session } } = await sb.auth.getSession();
   await handleSession(session);
 
   sb.auth.onAuthStateChange(async (_event, session)=>{ await handleSession(session); });
 }
 
+function getUrlAuthError(){
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/,''));
+  const query = new URLSearchParams(window.location.search);
+  const err = hash.get('error_description') || hash.get('error') || query.get('error_description') || query.get('error');
+  return err ? decodeURIComponent(err.replace(/\+/g,' ')) : null;
+}
+
 async function doGoogleSignIn(){
   // Requesting calendar.readonly here (alongside the default login scopes) is what
   // lets Calendar sync call Google's API directly with the token this sign-in
   // returns — no separate connection step needed.
+  // Always redirect to the clean base URL (origin + path only) — using the
+  // full current URL here would carry forward any leftover auth params from a
+  // previous attempt, which can corrupt the next sign-in and cause a loop.
+  const cleanUrl = window.location.origin + window.location.pathname;
   await sb.auth.signInWithOAuth({
     provider:'google',
     options:{
-      redirectTo: window.location.href,
+      redirectTo: cleanUrl,
       scopes: 'https://www.googleapis.com/auth/calendar.readonly',
       queryParams: { access_type:'offline', prompt:'consent' }
     }
