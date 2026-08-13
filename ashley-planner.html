@@ -569,6 +569,14 @@
   }
   .meal-table textarea:focus{outline:none;background:#FBFBF9;}
 
+  /* Task Planner (Week view) */
+  .week-task-cell{vertical-align:top;padding:5px 4px;}
+  .week-task-item{display:flex;align-items:flex-start;gap:5px;padding:3px 0;font-size:11px;line-height:1.3;}
+  .week-task-item .chk{width:14px;height:14px;flex-shrink:0;margin-top:1px;border-radius:4px;}
+  .week-task-item .chk.checked::after{font-size:9px;}
+  .week-task-item span{flex:1;word-break:break-word;}
+  .week-task-item.wk-done span{color:var(--muted);opacity:.75;}
+
   /* Month view calendar grid */
   .month-grid-wrap{overflow-x:auto;margin-bottom:6px;}
   .month-table{width:100%;border-collapse:collapse;font-size:11px;min-width:680px;table-layout:fixed;}
@@ -907,10 +915,6 @@
       <div class="week-days" id="weekDaysGrid"></div>
       <div class="rest-hint" style="margin-bottom:6px;">Tap a day's name to jump to that Day page.</div>
 
-      <div class="section-bar">3 Crucial Results This Week</div>
-      <div id="crucialList"></div>
-      <div class="add-row"><button class="add-btn" id="addCrucialBtn">+ add result</button></div>
-
       <div class="section-bar">This Week's Top Moves</div>
       <div id="movesList"></div>
 
@@ -936,6 +940,21 @@
 
       <div class="section-bar teal">Linger <span class="sub">what is God saying this week?</span></div>
       <textarea class="win-textarea" id="weekLinger" style="min-height:60px;"></textarea>
+    </div>
+
+    <!-- TASK PLANNER -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title" style="font-size:19px;">Task Planner</div>
+        <button class="sync-btn" id="syncWeekTasksBtn">↻ Sync</button>
+      </div>
+      <div class="rest-hint" id="weekTasksHint" style="margin-bottom:6px;">Planned tasks from HubSpot for this week.</div>
+      <div class="meal-grid-wrap">
+        <table class="meal-table" id="weekTasksTable">
+          <thead><tr><th>MON</th><th>TUE</th><th>WED</th><th>THU</th><th>FRI</th><th>SAT</th><th>SUN</th></tr></thead>
+          <tbody><tr id="weekTasksRow"></tr></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- MEAL PLANNER -->
@@ -1601,6 +1620,40 @@ async function syncHubspotTasks(dateIso, btnEl){
   }
 }
 
+/* Same idea, but for the whole week (Task Planner on the Week tab). Asks the
+   Edge Function for everything due Mon–Sun and groups it by day client-side. */
+let lastWeekTasksSyncError = null;
+async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl){
+  if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'listWeek', weekStart: weekMonIso, weekEnd: weekSunIso }
+    });
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    if(!Array.isArray(data)) throw new Error('Unexpected response shape');
+
+    const grouped = {mon:[],tue:[],wed:[],thu:[],fri:[],sat:[],sun:[]};
+    data.forEach(t=>{
+      if(t.dueDayKey && grouped.hasOwnProperty(t.dueDayKey)){
+        grouped[t.dueDayKey].push({ id:t.id, subject:t.subject, done:t.done });
+      }
+    });
+
+    lastWeekTasksSyncError = null;
+    if(btnEl){
+      btnEl.textContent = '✓ Synced';
+      setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
+    }
+    return grouped;
+  }catch(e){
+    console.error('Week task sync failed', e);
+    lastWeekTasksSyncError = e.message || String(e);
+    if(btnEl){ btnEl.disabled = false; btnEl.textContent = '⚠ Retry'; }
+    return null;
+  }
+}
+
 
 /* ---------------- Date / quarter math ---------------- */
 function isoDate(d){ return d.toISOString().slice(0,10); }
@@ -2037,6 +2090,7 @@ async function loadWeek(){
   currentWeekKey = 'week-' + iso;
   currentMealsKey = 'meals-' + iso;
   weekData = (await sget(currentWeekKey)) || seedWeek(iso);
+  if(!weekData.hubspotTasksByDay) weekData.hubspotTasksByDay = {};
 
   if(currentMealsKey === dayMealsKey && dayMealsData){
     mealsData = dayMealsData; // same week the Day tab is showing — share it live
@@ -2046,6 +2100,17 @@ async function loadWeek(){
 
   weekDayTypes = await loadWeekDayTypes(weekViewDate);
   renderWeek();
+  autoSyncWeekTasks(iso, currentWeekKey);
+}
+async function autoSyncWeekTasks(weekMonIso, keyAtCallTime){
+  const sunIso = isoDate(new Date(new Date(weekMonIso+'T00:00:00').getTime() + 6*86400000));
+  const grouped = await syncWeekHubspotTasks(weekMonIso, sunIso);
+  if(currentWeekKey !== keyAtCallTime) return; // navigated away before this resolved
+  if(grouped !== null){
+    weekData.hubspotTasksByDay = grouped;
+    saveWeekDebounced();
+  }
+  renderWeekTasksTable();
 }
 async function loadQuarterTab(){
   const {qNum, year} = calendarQuarterOf(quarterViewDate);
@@ -2594,22 +2659,6 @@ function renderWeek(){
     col.appendChild(dn); col.appendChild(pills); grid.appendChild(col);
   });
 
-  const cl=document.getElementById('crucialList'); cl.innerHTML='';
-  weekData.crucial.forEach((item,i)=>{
-    const row=document.createElement('div'); row.className='task-row';
-    const chk=document.createElement('div'); chk.className='chk'+(item.done?' checked':'');
-    chk.onclick=()=>{ item.done=!item.done; renderWeek(); saveWeekDebounced(); };
-    const inp=document.createElement('input'); inp.type='text'; inp.value=item.text; inp.placeholder='Result #'+(i+1);
-    if(item.done) inp.classList.add('done');
-    inp.oninput=()=>{ item.text=inp.value; saveWeekDebounced(); };
-    const why=document.createElement('input'); why.type='text'; why.value=item.why||''; why.placeholder='why it matters'; why.style.cssText='max-width:140px;font-style:italic;color:var(--muted);font-size:12px;border:none;background:transparent;font-family:inherit;';
-    why.oninput=()=>{ item.why=why.value; saveWeekDebounced(); };
-    row.appendChild(chk); row.appendChild(inp); row.appendChild(why); cl.appendChild(row);
-  });
-  document.getElementById('addCrucialBtn').onclick=()=>{
-    weekData.crucial.push({text:'',why:'',done:false}); renderWeek(); saveWeekDebounced();
-  };
-
   const ml=document.getElementById('movesList'); ml.innerHTML='';
   CATS.forEach(cat=>{
     const row=document.createElement('div'); row.className='moves-row';
@@ -2648,6 +2697,21 @@ function renderWeek(){
   const wlEl=document.getElementById('weekLinger'); if(document.activeElement!==wlEl) wlEl.value=weekData.linger;
   wlEl.oninput=()=>{ weekData.linger=wlEl.value; saveWeekDebounced(); };
 
+  renderWeekTasksTable();
+  const syncWeekTasksBtn = document.getElementById('syncWeekTasksBtn');
+  syncWeekTasksBtn.textContent = '↻ Sync';
+  syncWeekTasksBtn.disabled = false;
+  syncWeekTasksBtn.onclick = async ()=>{
+    const monIso = isoDate(weekViewDate);
+    const sunIso = isoDate(new Date(weekViewDate.getTime() + 6*86400000));
+    const grouped = await syncWeekHubspotTasks(monIso, sunIso, syncWeekTasksBtn);
+    if(grouped !== null){
+      weekData.hubspotTasksByDay = grouped;
+      saveWeekDebounced();
+      renderWeekTasksTable();
+    }
+  };
+
   renderMeals();
 }
 
@@ -2682,6 +2746,54 @@ function renderDayMealsTable(){
   });
   table.appendChild(tbody);
   container.appendChild(table);
+}
+
+/* Renders the Task Planner row: one cell per weekday, each holding a small
+   stacked checklist of that day's HubSpot tasks. Checkboxes write completion
+   status back to HubSpot immediately, same as the Day tab's Planned Tasks. */
+function renderWeekTasksTable(){
+  const row = document.getElementById('weekTasksRow');
+  if(!row) return;
+  row.innerHTML='';
+
+  const hintEl = document.getElementById('weekTasksHint');
+  if(hintEl){
+    hintEl.textContent = lastWeekTasksSyncError
+      ? 'Couldn\'t load tasks: ' + lastWeekTasksSyncError
+      : 'Planned tasks from HubSpot for this week.';
+    hintEl.style.color = lastWeekTasksSyncError ? 'var(--personal)' : 'var(--muted)';
+  }
+
+  const byDay = weekData.hubspotTasksByDay || {};
+  WEEK_DAY_KEYS.forEach(dayKey=>{
+    const td=document.createElement('td'); td.className='week-task-cell';
+    const tasks = byDay[dayKey] || [];
+    if(tasks.length===0){
+      const hint=document.createElement('div'); hint.className='empty-hint'; hint.style.fontSize='10.5px';
+      hint.textContent='—';
+      td.appendChild(hint);
+    }
+    tasks.forEach(t=>{
+      const isDone = taskIsDone(t);
+      const item=document.createElement('div'); item.className='week-task-item'+(isDone?' wk-done':'');
+      const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':'');
+      const label=document.createElement('span'); label.textContent = t.subject||'Untitled task';
+      chk.onclick=async()=>{
+        if(!t.id){ alert('Can\'t update — tap Sync to refresh, then try again.'); return; }
+        const newDone = !taskIsDone(t);
+        chk.className='chk'+(newDone?' checked':''); item.classList.toggle('wk-done', newDone);
+        const ok = await updateHubspotTaskStatus(t.id, newDone);
+        if(ok){ t.done=newDone; saveWeekDebounced(); }
+        else{
+          chk.className='chk'+(isDone?' checked':''); item.classList.toggle('wk-done', isDone);
+          alert('Could not update this task in HubSpot.');
+        }
+      };
+      item.appendChild(chk); item.appendChild(label);
+      td.appendChild(item);
+    });
+    row.appendChild(td);
+  });
 }
 
 function renderMeals(){
