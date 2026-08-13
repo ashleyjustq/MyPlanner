@@ -684,10 +684,12 @@
         </div>
       </div>
 
-      <div class="section-bar">Today</div>
+      <div class="section-bar">Habits</div>
       <div class="today-toggles">
         <div class="toggle-item" id="toggle-workout"><div class="chk" id="chk-workout"></div> workout</div>
-        <div class="toggle-item" id="toggle-prayer"><div class="chk" id="chk-prayer"></div> prayer + bible</div>
+        <div class="toggle-item" id="toggle-bible"><div class="chk" id="chk-bible"></div> bible reading</div>
+        <div class="toggle-item" id="toggle-prayer"><div class="chk" id="chk-prayer"></div> prayer</div>
+        <div class="toggle-item" id="toggle-joy"><div class="chk" id="chk-joy"></div> spark of joy</div>
       </div>
 
       <div class="section-bar maroon">Daily Win</div>
@@ -1531,6 +1533,8 @@ function defaultDay(){
     otherTasks: [],
     workout:false,
     prayer:false,
+    bibleReading:false,
+    sparkOfJoy:false,
     water:0,
     win:'',
     intention:'',
@@ -2170,9 +2174,15 @@ function renderWeekdayDay(){
   const chkW = document.getElementById('chk-workout');
   chkW.className='chk'+(dayData.workout?' checked':'');
   document.getElementById('toggle-workout').onclick=()=>{ dayData.workout=!dayData.workout; renderWeekdayDay(); saveDayDebounced(); };
+  const chkB = document.getElementById('chk-bible');
+  chkB.className='chk'+(dayData.bibleReading?' checked':'');
+  document.getElementById('toggle-bible').onclick=()=>{ dayData.bibleReading=!dayData.bibleReading; renderWeekdayDay(); saveDayDebounced(); };
   const chkP = document.getElementById('chk-prayer');
   chkP.className='chk'+(dayData.prayer?' checked':'');
   document.getElementById('toggle-prayer').onclick=()=>{ dayData.prayer=!dayData.prayer; renderWeekdayDay(); saveDayDebounced(); };
+  const chkJ = document.getElementById('chk-joy');
+  chkJ.className='chk'+(dayData.sparkOfJoy?' checked':'');
+  document.getElementById('toggle-joy').onclick=()=>{ dayData.sparkOfJoy=!dayData.sparkOfJoy; renderWeekdayDay(); saveDayDebounced(); };
 
   const wd = document.getElementById('waterDrops'); wd.innerHTML='';
   for(let i=0;i<8;i++){
