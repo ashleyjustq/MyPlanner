@@ -1019,6 +1019,8 @@ function showLoadingOverlay(){ document.getElementById('loadingOverlay').classLi
 function hideLoadingOverlay(){ document.getElementById('loadingOverlay').classList.remove('show'); }
 
 async function handleSession(session){
+  const authGateEl=document.getElementById('authGate');
+  const appRootEl=document.getElementById('appRoot');
   const loadingCard=document.getElementById('authCardLoading');
   const signInCard=document.getElementById('authCardSignIn');
   const deniedCard=document.getElementById('authCardDenied');
@@ -1026,17 +1028,21 @@ async function handleSession(session){
   if(session && session.user && session.user.email &&
      session.user.email.toLowerCase()===ALLOWED_EMAIL.toLowerCase()){
     currentUser = session.user;
-    document.getElementById('authGate').style.display='none';
-    document.getElementById('appRoot').style.display='block';
+    authGateEl.style.display='none';
+    appRootEl.style.display='block';
     init();
   }else if(session && session.user){
     await sb.auth.signOut();
     currentUser = null;
+    appRootEl.style.display='none';
+    authGateEl.style.display='flex';
     loadingCard.style.display='none'; signInCard.style.display='none';
     deniedCard.style.display='block';
     document.getElementById('authDeniedEmail').textContent = session.user.email||'(no email)';
   }else{
     currentUser = null;
+    appRootEl.style.display='none';
+    authGateEl.style.display='flex';
     loadingCard.style.display='none'; deniedCard.style.display='none';
     signInCard.style.display='block';
   }
