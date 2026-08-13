@@ -851,15 +851,9 @@
       </div>
       <div class="rest-hint" id="monthSyncHint" style="margin-bottom:6px;">Showing all-day events only.</div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px;">
-        <div>
-          <div class="section-bar">Tasks</div>
-          <textarea class="win-textarea" id="monthTasks" style="min-height:110px;" placeholder="This month's tasks…"></textarea>
-        </div>
-        <div>
-          <div class="section-bar">Notes</div>
-          <textarea class="win-textarea" id="monthNotes" style="min-height:110px;" placeholder="Notes…"></textarea>
-        </div>
+      <div style="margin-top:10px;">
+        <div class="section-bar">Notes</div>
+        <textarea class="win-textarea" id="monthNotes" style="min-height:110px;" placeholder="Notes…"></textarea>
       </div>
     </div>
   </div>
@@ -2482,10 +2476,6 @@ function renderMonthTab(){
     });
     body.appendChild(tr);
   });
-
-  const tasksEl = document.getElementById('monthTasks');
-  if(document.activeElement !== tasksEl) tasksEl.value = monthData.tasks || '';
-  tasksEl.oninput = ()=>{ monthData.tasks = tasksEl.value; saveMonthDebounced(); };
 
   const notesEl = document.getElementById('monthNotes');
   if(document.activeElement !== notesEl) notesEl.value = monthData.notes || '';
