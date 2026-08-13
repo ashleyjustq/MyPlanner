@@ -707,39 +707,45 @@
 
       <div class="section-bar">Today's Meals</div>
 
-      <div class="stat-card">
-        <div class="stat-card-label">Water</div>
-        <div class="water-control-row">
-          <button class="stat-round-btn" id="waterMinusBtn">−</button>
-          <div class="water-count-big" id="waterCountBig">0/8</div>
-          <button class="stat-round-btn" id="waterPlusBtn">+</button>
-          <div class="water-pips" id="waterPips"></div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;">
+        <div>
+          <div id="dayMealsTable"></div>
         </div>
-      </div>
 
-      <div class="stat-card">
-        <div class="stat-card-label">Today's Totals</div>
-        <div class="totals-grid">
-          <div class="totals-box">
-            <div class="totals-box-label">Protein</div>
-            <div class="totals-box-value">
-              <input type="number" id="proteinInput" value="0" min="0"><span class="unit">g</span>
-              <span class="target">/ 100g</span>
+        <div>
+          <div class="stat-card">
+            <div class="stat-card-label">Water</div>
+            <div class="water-control-row">
+              <button class="stat-round-btn" id="waterMinusBtn">−</button>
+              <div class="water-count-big" id="waterCountBig">0/8</div>
+              <button class="stat-round-btn" id="waterPlusBtn">+</button>
+              <div class="water-pips" id="waterPips"></div>
             </div>
           </div>
-          <div class="totals-box">
-            <div class="totals-box-label">Calories</div>
-            <div class="totals-box-value">
-              <input type="number" id="caloriesInput" value="0" min="0">
-              <span class="target">/ 1750</span>
+
+          <div class="stat-card">
+            <div class="stat-card-label">Today's Totals</div>
+            <div class="totals-grid">
+              <div class="totals-box">
+                <div class="totals-box-label">Protein</div>
+                <div class="totals-box-value">
+                  <input type="number" id="proteinInput" value="0" min="0"><span class="unit">g</span>
+                  <span class="target">/ 100g</span>
+                </div>
+              </div>
+              <div class="totals-box">
+                <div class="totals-box-label">Calories</div>
+                <div class="totals-box-value">
+                  <input type="number" id="caloriesInput" value="0" min="0">
+                  <span class="target">/ 1750</span>
+                </div>
+              </div>
             </div>
+            <div class="totals-remaining" id="proteinRemaining">100g protein remaining</div>
+            <div class="totals-remaining" id="caloriesRemaining">1750 cal remaining</div>
           </div>
         </div>
-        <div class="totals-remaining" id="proteinRemaining">100g protein remaining</div>
-        <div class="totals-remaining" id="caloriesRemaining">1750 cal remaining</div>
       </div>
-
-      <div id="dayMealsTable"></div>
 
       <div class="section-bar">Habits</div>
       <div class="today-toggles">
