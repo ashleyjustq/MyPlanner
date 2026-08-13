@@ -409,10 +409,19 @@
     padding:64px 14px 20px;display:flex;flex-direction:column;gap:4px;
   }
   .side-drawer.open{transform:translateX(0);}
+  .drawer-header-row{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:8px;padding:0 4px 0 10px;
+  }
   .drawer-header{
     font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;
-    letter-spacing:.04em;margin-bottom:8px;padding:0 10px;
+    letter-spacing:.04em;margin:0;
   }
+  .drawer-close-btn{
+    border:none;background:none;font-size:20px;line-height:1;color:var(--muted);
+    cursor:pointer;padding:4px 8px;border-radius:6px;
+  }
+  .drawer-close-btn:hover{color:var(--navy);background:#F5F4F1;}
   .drawer-item{
     display:block;width:100%;text-align:left;border:none;background:none;
     padding:12px 10px;border-radius:8px;font-family:inherit;font-size:14.5px;color:var(--ink);
@@ -532,7 +541,10 @@
   </button>
   <div class="drawer-overlay" id="drawerOverlay"></div>
   <div class="side-drawer" id="sideDrawer">
-    <div class="drawer-header">Menu</div>
+    <div class="drawer-header-row">
+      <span class="drawer-header">Menu</span>
+      <button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">✕</button>
+    </div>
     <button class="drawer-item" id="exportBtn">⭳ Export backup</button>
     <label class="drawer-item" for="importFile">⭱ Import backup</label>
     <input type="file" id="importFile" accept="application/json" style="display:none;">
@@ -1553,6 +1565,7 @@ async function init(){
 
   document.getElementById('hamburgerBtn').onclick=()=>openDrawer();
   document.getElementById('drawerOverlay').onclick=()=>closeDrawer();
+  document.getElementById('drawerCloseBtn').onclick=()=>closeDrawer();
 }
 function openDrawer(){
   document.getElementById('sideDrawer').classList.add('open');
