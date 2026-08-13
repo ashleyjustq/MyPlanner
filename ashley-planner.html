@@ -725,7 +725,10 @@
       </div>
 
       <div class="today-toggles" style="margin-top:14px;">
-        <div class="toggle-item" id="toggle-prayer-wk"><div class="chk" id="chk-prayer-wk"></div> prayer + bible</div>
+        <div class="toggle-item" id="toggle-workout-wk"><div class="chk" id="chk-workout-wk"></div> workout</div>
+        <div class="toggle-item" id="toggle-bible-wk"><div class="chk" id="chk-bible-wk"></div> bible reading</div>
+        <div class="toggle-item" id="toggle-prayer-wk"><div class="chk" id="chk-prayer-wk"></div> prayer</div>
+        <div class="toggle-item" id="toggle-joy-wk"><div class="chk" id="chk-joy-wk"></div> spark of joy</div>
       </div>
       <div class="water-row">
         <span class="water-label">Water</span>
@@ -2245,9 +2248,18 @@ function renderWeekendDay(){
     dayData.restRestore.push({text:''}); renderWeekendDay(); saveDayDebounced();
   };
 
+  const chkWwk = document.getElementById('chk-workout-wk');
+  chkWwk.className='chk'+(dayData.workout?' checked':'');
+  document.getElementById('toggle-workout-wk').onclick=()=>{ dayData.workout=!dayData.workout; renderWeekendDay(); saveDayDebounced(); };
+  const chkBwk = document.getElementById('chk-bible-wk');
+  chkBwk.className='chk'+(dayData.bibleReading?' checked':'');
+  document.getElementById('toggle-bible-wk').onclick=()=>{ dayData.bibleReading=!dayData.bibleReading; renderWeekendDay(); saveDayDebounced(); };
   const chkP = document.getElementById('chk-prayer-wk');
   chkP.className='chk'+(dayData.prayer?' checked':'');
   document.getElementById('toggle-prayer-wk').onclick=()=>{ dayData.prayer=!dayData.prayer; renderWeekendDay(); saveDayDebounced(); };
+  const chkJwk = document.getElementById('chk-joy-wk');
+  chkJwk.className='chk'+(dayData.sparkOfJoy?' checked':'');
+  document.getElementById('toggle-joy-wk').onclick=()=>{ dayData.sparkOfJoy=!dayData.sparkOfJoy; renderWeekendDay(); saveDayDebounced(); };
 
   const wd = document.getElementById('waterDropsWk'); wd.innerHTML='';
   for(let i=0;i<8;i++){
