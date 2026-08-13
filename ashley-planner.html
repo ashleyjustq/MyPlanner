@@ -439,6 +439,19 @@
   .push-modal-submit:hover:not(:disabled){background:var(--navy-light);}
   .push-modal-submit:disabled{opacity:.6;cursor:default;}
 
+  .move-modal-task-name{
+    font-size:14px;color:var(--ink);background:#F5F4F1;border-radius:8px;
+    padding:9px 12px;margin-bottom:4px;
+  }
+  .move-day-pills{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;}
+  .move-day-pill{
+    border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:10px 4px;
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;text-align:center;
+  }
+  .move-day-pill:hover:not(:disabled){border-color:var(--work);background:#F0F7FC;}
+  .move-day-pill:disabled{opacity:.4;cursor:default;background:#F5F4F1;}
+  .move-day-pill.current{border-color:var(--navy);background:var(--navy);color:#fff;}
+
   .auth-card{
     background:#fff;border-radius:16px;padding:36px 28px;max-width:340px;width:100%;
     text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);
@@ -762,6 +775,23 @@
     <div class="push-modal-actions">
       <button class="push-modal-cancel" id="pushModalCancelBtn">Cancel</button>
       <button class="push-modal-submit" id="pushModalSubmitBtn">Push to HubSpot</button>
+    </div>
+  </div>
+</div>
+
+<!-- MOVE TASK MODAL -->
+<div class="push-modal-overlay" id="moveModalOverlay">
+  <div class="push-modal-card">
+    <div class="push-modal-title">Move Task</div>
+    <div class="move-modal-task-name" id="moveModalTaskName"></div>
+
+    <label class="push-field-label" for="moveModalDayPicker">Move to</label>
+    <div class="move-day-pills" id="moveDayPills"></div>
+
+    <div class="push-modal-error" id="moveModalError"></div>
+
+    <div class="push-modal-actions">
+      <button class="push-modal-cancel" id="moveModalCancelBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -2112,6 +2142,7 @@ async function init(){
   });
   document.getElementById('pushModalCancelBtn').onclick=()=>closePushModal();
   document.getElementById('pushModalSubmitBtn').onclick=()=>submitPushModal();
+  document.getElementById('moveModalCancelBtn').onclick=()=>closeMoveModal();
 }
 function openDrawer(){
   document.getElementById('sideDrawer').classList.add('open');
@@ -2489,6 +2520,77 @@ async function updateHubspotTaskStatus(taskId, done){
   }catch(e){
     console.error('HubSpot task update failed', e);
     return false;
+  }
+}
+
+async function rescheduleHubspotTask(taskId, dueIso){
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', { body: { action:'reschedule', taskId, dueIso } });
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    return true;
+  }catch(e){
+    console.error('HubSpot task reschedule failed', e);
+    return false;
+  }
+}
+
+/* ---------------- Move Task modal (Task Planner, Week tab) ----------------
+   Tap-to-move rather than drag-and-drop — reliable on iPad and desktop alike,
+   where native HTML5 drag-and-drop is genuinely unreliable on touch. */
+let moveModalCtx = null; // {task, fromDayKey}
+
+function openMoveModal(task, fromDayKey){
+  moveModalCtx = { task, fromDayKey };
+  document.getElementById('moveModalTaskName').textContent = task.subject || 'Untitled task';
+  document.getElementById('moveModalError').textContent = '';
+
+  const dayLabels = [['mon','MON'],['tue','TUE'],['wed','WED'],['thu','THU'],['fri','FRI'],['sat','SAT'],['sun','SUN']];
+  const pillsEl = document.getElementById('moveDayPills');
+  pillsEl.innerHTML = '';
+  dayLabels.forEach(([key,label],idx)=>{
+    const d = new Date(weekViewDate); d.setDate(weekViewDate.getDate()+idx);
+    const btn = document.createElement('button');
+    btn.className = 'move-day-pill'+(key===fromDayKey?' current':'');
+    btn.innerHTML = label+'<br>'+fmtShort(d);
+    if(key===fromDayKey){ btn.disabled = true; }
+    btn.onclick = ()=>submitMoveModal(key, isoDate(d));
+    pillsEl.appendChild(btn);
+  });
+
+  document.getElementById('moveModalOverlay').classList.add('show');
+}
+function closeMoveModal(){
+  document.getElementById('moveModalOverlay').classList.remove('show');
+  moveModalCtx = null;
+}
+async function submitMoveModal(toDayKey, toDueIso){
+  if(!moveModalCtx) return;
+  const { task, fromDayKey } = moveModalCtx;
+  const errEl = document.getElementById('moveModalError');
+
+  if(!task.id){
+    errEl.textContent = 'Can\'t move this task — tap Sync to refresh, then try again.';
+    return;
+  }
+
+  errEl.textContent = 'Moving…';
+  const ok = await rescheduleHubspotTask(task.id, toDueIso);
+
+  if(ok){
+    const byDay = weekData.hubspotTasksByDay || {};
+    if(byDay[fromDayKey]){
+      const idx = byDay[fromDayKey].findIndex(t=>t.id===task.id);
+      if(idx>-1) byDay[fromDayKey].splice(idx,1);
+    }
+    if(!byDay[toDayKey]) byDay[toDayKey]=[];
+    byDay[toDayKey].push(task);
+    weekData.hubspotTasksByDay = byDay;
+    saveWeekDebounced();
+    renderWeekTasksTable();
+    closeMoveModal();
+  }else{
+    errEl.textContent = 'Could not move this task in HubSpot. Try again.';
   }
 }
 
@@ -2893,6 +2995,9 @@ function renderWeekTasksTable(){
       const item=document.createElement('div'); item.className='week-task-item'+(isDone?' wk-done':'');
       const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':'');
       const label=document.createElement('span'); label.textContent = t.subject||'Untitled task';
+      label.style.cursor='pointer';
+      label.title='Tap to move to a different day';
+      label.onclick=()=>openMoveModal(t, dayKey);
       chk.onclick=async()=>{
         if(!t.id){ alert('Can\'t update — tap Sync to refresh, then try again.'); return; }
         const newDone = !taskIsDone(t);
