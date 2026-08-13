@@ -1247,6 +1247,7 @@ const GCAL_COLOR_TO_CATEGORY = {
   '8':'work'        // Graphite — no clean match, default to work
 };
 function categoryColorFor(colorId){
+  if(colorId==='birthday') return '#C77DBE'; // distinct pink/purple — birthdays aren't part of the 5-category scheme
   const cat = GCAL_COLOR_TO_CATEGORY[String(colorId||'')];
   if(cat){ const c=CATS.find(x=>x.id===cat); if(c) return c.color; }
   return 'var(--work)';
@@ -1328,32 +1329,59 @@ async function syncMonthAllDayEvents(year, monthIndex){
     const { data:{ session } } = await sb.auth.getSession();
     const token = session && session.provider_token;
     if(!token) throw new Error('No calendar access — sign out and back in to grant it');
+    const authHeader = { 'Authorization': 'Bearer '+token };
 
     const timeMin = new Date(year, monthIndex, 1).toISOString();
     const timeMax = new Date(year, monthIndex+1, 0, 23, 59, 59).toISOString();
     const params = new URLSearchParams({
       timeMin, timeMax, singleEvents:'true', orderBy:'startTime', maxResults:'250'
     });
-    const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?'+params.toString(), {
-      headers: { 'Authorization': 'Bearer '+token }
-    });
+
+    const map = {};
+    const addEventsToMap = (items, forcedColorId)=>{
+      (items||[]).forEach(ev=>{
+        if(!(ev.start && ev.start.date)) return; // skip timed events — only want all-day
+        const startD = new Date(ev.start.date+'T00:00:00');
+        // Google's all-day end.date is EXCLUSIVE (the day after the last day)
+        const endD = (ev.end && ev.end.date) ? new Date(ev.end.date+'T00:00:00') : new Date(startD.getTime()+86400000);
+        for(let d=new Date(startD); d<endD; d.setDate(d.getDate()+1)){
+          const iso = isoDate(d);
+          if(!map[iso]) map[iso]=[];
+          map[iso].push({ title: ev.summary || 'Untitled', colorId: forcedColorId || ev.colorId || null });
+        }
+      });
+    };
+
+    // Primary calendar
+    const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?'+params.toString(), { headers: authHeader });
     if(!res.ok){
       if(res.status===401) throw new Error('Calendar access expired — sign out and back in to refresh it');
       throw new Error('HTTP '+res.status);
     }
     const data = await res.json();
-    const map = {};
-    (data.items||[]).forEach(ev=>{
-      if(!(ev.start && ev.start.date)) return; // skip timed events — only want all-day
-      const startD = new Date(ev.start.date+'T00:00:00');
-      // Google's all-day end.date is EXCLUSIVE (the day after the last day)
-      const endD = (ev.end && ev.end.date) ? new Date(ev.end.date+'T00:00:00') : new Date(startD.getTime()+86400000);
-      for(let d=new Date(startD); d<endD; d.setDate(d.getDate()+1)){
-        const iso = isoDate(d);
-        if(!map[iso]) map[iso]=[];
-        map[iso].push({ title: ev.summary || 'Untitled', colorId: ev.colorId || null });
+    addEventsToMap(data.items);
+
+    // Birthdays live on a separate special calendar — find it by name rather
+    // than guessing its ID, since that can vary by account.
+    try{
+      const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers: authHeader });
+      if(listRes.ok){
+        const listData = await listRes.json();
+        const bdayCal = (listData.items||[]).find(c=>
+          /birthday/i.test(c.summary||'') || /contacts@group\.v\.calendar\.google\.com/i.test(c.id||'')
+        );
+        if(bdayCal){
+          const bdayRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(bdayCal.id)+'/events?'+params.toString(), { headers: authHeader });
+          if(bdayRes.ok){
+            const bdayData = await bdayRes.json();
+            addEventsToMap(bdayData.items, 'birthday');
+          }
+        }
       }
-    });
+    }catch(bErr){
+      console.error('Birthdays calendar fetch failed (non-fatal)', bErr);
+    }
+
     lastMonthSyncError = null;
     return map;
   }catch(e){
@@ -2490,7 +2518,7 @@ function renderMonthTab(){
           const title = (typeof ev === 'string') ? ev : ev.title;
           const colorId = (typeof ev === 'string') ? null : ev.colorId;
           evEl.style.background = categoryColorFor(colorId);
-          evEl.textContent = title;
+          evEl.textContent = (colorId==='birthday' ? '🎂 ' : '') + title;
           td.appendChild(evEl);
         });
       }
