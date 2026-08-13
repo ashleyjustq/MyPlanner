@@ -1092,15 +1092,17 @@ function categoryColorFor(colorId){
   return 'var(--work)';
 }
 
-/* ---------------- Google Calendar sync (on-demand, read-only) ----------------
+/* ---------------- Google Calendar sync ----------------
    Calls Google's Calendar API directly using the access token from your Google
    sign-in (session.provider_token) — the calendar.readonly scope requested at
    login is what makes this token valid for calendar reads. Never writes back.
    Note: this token is only good for about an hour; if it's expired, sign out
-   and back in to get a fresh one. */
+   and back in to get a fresh one.
+   btnEl is optional — pass null for a silent background sync (used to
+   auto-load the day's events when you navigate to a date, no tap needed). */
+let lastCalendarSyncError = null;
 async function syncFromCalendar(dateIso, btnEl){
-  btnEl.disabled = true;
-  btnEl.textContent = 'Syncing…';
+  if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
     const { data:{ session } } = await sb.auth.getSession();
     const token = session && session.provider_token;
@@ -1123,7 +1125,8 @@ async function syncFromCalendar(dateIso, btnEl){
     });
     if(!res.ok){
       if(res.status===401) throw new Error('Calendar access expired — sign out and back in to refresh it');
-      throw new Error('HTTP '+res.status);
+      const bodyText = await res.text().catch(()=> '');
+      throw new Error('HTTP '+res.status+(bodyText?': '+bodyText.slice(0,150):''));
     }
     const data = await res.json();
 
@@ -1141,13 +1144,16 @@ async function syncFromCalendar(dateIso, btnEl){
         };
       });
 
-    btnEl.textContent = '✓ Synced';
-    setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
+    lastCalendarSyncError = null;
+    if(btnEl){
+      btnEl.textContent = '✓ Synced';
+      setTimeout(()=>{ if(btnEl){ btnEl.disabled=false; btnEl.textContent='↻ Sync'; } }, 2000);
+    }
     return events;
   }catch(e){
     console.error('Calendar sync failed', e);
-    btnEl.disabled = false;
-    btnEl.textContent = '⚠ Retry';
+    lastCalendarSyncError = e.message || String(e);
+    if(btnEl){ btnEl.disabled = false; btnEl.textContent = '⚠ Retry'; }
     return null;
   }
 }
@@ -1520,6 +1526,24 @@ async function loadDay(){
   }
 
   renderDay();
+
+  // Auto-refresh the calendar timeline in the background — no tap needed.
+  // Fires after renderDay() so the rest of the page is already usable while
+  // this loads; it repaints just the timeline once it resolves.
+  if(!isWeekendDate(selectedDate)){
+    autoSyncCalendar(iso);
+  }
+}
+async function autoSyncCalendar(iso){
+  const events = await syncFromCalendar(iso, null);
+  // Only apply the result if we're still looking at the same date — guards
+  // against a slow response landing after the person has already navigated on.
+  if(isoDate(selectedDate) !== iso) return;
+  if(events !== null){
+    dayData.calendarEvents = events;
+    saveDayDebounced();
+  }
+  renderCalendarTimeline();
 }
 async function loadWeek(){
   const iso = isoDate(weekViewDate);
@@ -1718,7 +1742,12 @@ function renderCalendarTimeline(){
   if(!events || events.length===0){
     const hint=document.createElement('div'); hint.className='empty-hint';
     hint.style.padding='10px';
-    hint.textContent = events===null ? 'Not synced yet — tap "Sync".' : 'No events synced for this day.';
+    if(lastCalendarSyncError){
+      hint.textContent = 'Couldn\'t load calendar: ' + lastCalendarSyncError;
+      hint.style.color = 'var(--personal)';
+    }else{
+      hint.textContent = events===null ? 'Loading…' : 'No events on your calendar for this day.';
+    }
     container.appendChild(hint);
     return;
   }
