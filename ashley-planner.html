@@ -341,6 +341,20 @@
   }
   .win-textarea:focus{outline:none;border-bottom-color:var(--maroon);}
 
+  /* Auto-generated "What stood out" box — visually distinct gray card so it
+     reads as computed content, not something typed by hand like its neighbors. */
+  .generated-box{
+    background:#F0EFEB;border:1px solid var(--border);border-radius:10px;
+    padding:10px 12px 4px;
+  }
+  .generated-textarea{border-bottom:none;padding-bottom:6px;font-size:13.5px;}
+  .generate-btn{
+    border:1px solid var(--border);background:#fff;color:var(--work);
+    font-family:inherit;font-size:11px;border-radius:6px;padding:4px 9px;cursor:pointer;
+  }
+  .generate-btn:hover:not(:disabled){border-color:var(--work);background:#F0F7FC;}
+  .generate-btn:disabled{opacity:.6;cursor:default;}
+
   /* Week day type pills */
   .week-days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:4px;}
   .week-day-col{border:1px solid var(--border);border-radius:10px;padding:8px 6px;text-align:center;}
@@ -1102,9 +1116,14 @@
           <textarea class="win-textarea" id="whatChange" style="min-height:50px;"></textarea>
         </div>
         <div>
-          <div class="col-head navy2">&nbsp;</div>
+          <div class="col-head navy2" style="display:flex;justify-content:space-between;align-items:baseline;">
+            <span>&nbsp;</span>
+            <button class="generate-btn" id="generateStoodOutBtn">✨ Generate</button>
+          </div>
           <div class="col-sub">What stood out → celebrate</div>
-          <textarea class="win-textarea" id="whatStoodOut" style="min-height:50px;"></textarea>
+          <div class="generated-box">
+            <textarea class="win-textarea generated-textarea" id="whatStoodOut" style="min-height:50px;" placeholder="Tap ✨ Generate for a data-driven recap of this week, or write your own."></textarea>
+          </div>
         </div>
       </div>
 
@@ -1495,6 +1514,61 @@ function highlightMatch(text, query){
   const match = escapeHtml(text.slice(idx, idx+query.length));
   const after = escapeHtml(text.slice(idx+query.length, end));
   return prefix + before + '<mark>' + match + '</mark>' + after + suffix;
+}
+
+/* ---------------- "What stood out" auto-generate (rule-based, no AI) ----------------
+   Pulls real numbers from the week's 7 saved days — habit completion, water
+   average, day-type mix, daily wins logged — and writes a plain data-driven
+   recap. No model call, no cost; just your own numbers put into a sentence. */
+async function generateWhatStoodOut(){
+  const btn = document.getElementById('generateStoodOutBtn');
+  btn.disabled = true; btn.textContent = 'Generating…';
+  try{
+    const days = [];
+    for(let i=0;i<7;i++){
+      const d = new Date(weekViewDate); d.setDate(weekViewDate.getDate()+i);
+      const iso = isoDate(d);
+      const rec = (iso===isoDate(selectedDate) && dayData) ? dayData : await getDayRecord(iso);
+      days.push(rec || {});
+    }
+
+    const habitFields = [['workout','workout'],['bibleReading','bible reading'],['prayer','prayer'],['sparkOfJoy','spark of joy']];
+    const habitCounts = {};
+    habitFields.forEach(([field,label])=>{ habitCounts[label] = days.filter(d=>d[field]).length; });
+
+    const waterVals = days.map(d=> typeof d.water==='number' ? d.water : 0);
+    const waterAvg = waterVals.reduce((a,b)=>a+b,0) / 7;
+
+    const dayTypeCounts = {free:0, buffer:0, focus:0};
+    days.forEach(d=>{ if(dayTypeCounts.hasOwnProperty(d.dayType)) dayTypeCounts[d.dayType]++; });
+
+    const winCount = days.filter(d=>d.win && d.win.trim()).length;
+
+    let bestHabit=null, bestCount=-1;
+    habitFields.forEach(([,label])=>{ if(habitCounts[label]>bestCount){ bestCount=habitCounts[label]; bestHabit=label; } });
+
+    const parts = [];
+    if(bestCount>0) parts.push('Strongest habit: '+bestHabit+' ('+bestCount+'/7 days).');
+    parts.push(habitFields.map(([,label])=>label+' '+habitCounts[label]+'/7').join(' · ')+'.');
+    parts.push('Water averaged '+waterAvg.toFixed(1)+'/8 cups per day.');
+    if(winCount>0) parts.push(winCount+' daily win'+(winCount===1?'':'s')+' logged.');
+    const shapeParts = [];
+    if(dayTypeCounts.free) shapeParts.push(dayTypeCounts.free+' free');
+    if(dayTypeCounts.buffer) shapeParts.push(dayTypeCounts.buffer+' buffer');
+    if(dayTypeCounts.focus) shapeParts.push(dayTypeCounts.focus+' focus');
+    if(shapeParts.length) parts.push('Week shape: '+shapeParts.join(', ')+'.');
+
+    const text = parts.join(' ');
+    weekData.whatStoodOut = text;
+    const el = document.getElementById('whatStoodOut');
+    el.value = text;
+    saveWeekDebounced();
+  }catch(e){
+    console.error('Generate What Stood Out failed', e);
+    alert('Could not generate — try again.');
+  }finally{
+    btn.disabled = false; btn.textContent = '✨ Generate';
+  }
 }
 
 async function performSearch(query){
@@ -3149,6 +3223,7 @@ function renderWeek(){
   wcEl.oninput=()=>{ weekData.whatChange=wcEl.value; saveWeekDebounced(); };
   const wsEl=document.getElementById('whatStoodOut'); if(document.activeElement!==wsEl) wsEl.value=weekData.whatStoodOut||'';
   wsEl.oninput=()=>{ weekData.whatStoodOut=wsEl.value; saveWeekDebounced(); };
+  document.getElementById('generateStoodOutBtn').onclick=()=>generateWhatStoodOut();
 
   const fb=document.getElementById('farmBody'); fb.innerHTML='';
   weekData.farm.forEach((p,i)=>{
