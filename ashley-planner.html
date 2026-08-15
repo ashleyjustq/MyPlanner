@@ -835,7 +835,7 @@
 <div class="push-modal-overlay" id="searchModalOverlay">
   <div class="push-modal-card search-modal-card">
     <div class="push-modal-title">Search</div>
-    <div class="push-modal-error" id="searchModalHint" style="color:var(--muted);margin-top:0;">Searches Daily Wins and Linger entries (Week &amp; Quarter).</div>
+    <div class="push-modal-error" id="searchModalHint" style="color:var(--muted);margin-top:0;">Searches Daily Wins, Linger entries, and Looking Back.</div>
 
     <input type="text" id="searchInput" class="push-field-input" placeholder="Search…" autocomplete="off">
 
@@ -1595,15 +1595,22 @@ async function performSearch(query){
   for(const key of (weekList.keys||[])){
     const monIso = key.replace('week-','');
     const rec = await sget(key);
-    if(rec && rec.linger && rec.linger.toLowerCase().includes(qLower)){
-      const mon = new Date(monIso+'T00:00:00');
-      const sun = new Date(mon); sun.setDate(mon.getDate()+6);
-      results.push({
-        type:'Week Linger',
-        dateLabel: fmtShort(mon)+' – '+fmtShort(sun),
-        snippetHtml: highlightMatch(rec.linger, q),
-        nav:{kind:'week', monIso}
-      });
+    if(!rec) continue;
+    const mon = new Date(monIso+'T00:00:00');
+    const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+    const dateLabel = fmtShort(mon)+' – '+fmtShort(sun);
+
+    if(rec.linger && rec.linger.toLowerCase().includes(qLower)){
+      results.push({ type:'Week Linger', dateLabel, snippetHtml: highlightMatch(rec.linger, q), nav:{kind:'week', monIso} });
+    }
+    if(rec.whatWorked && rec.whatWorked.toLowerCase().includes(qLower)){
+      results.push({ type:'Looking Back · Worked', dateLabel, snippetHtml: highlightMatch(rec.whatWorked, q), nav:{kind:'week', monIso} });
+    }
+    if(rec.whatChange && rec.whatChange.toLowerCase().includes(qLower)){
+      results.push({ type:'Looking Back · Change', dateLabel, snippetHtml: highlightMatch(rec.whatChange, q), nav:{kind:'week', monIso} });
+    }
+    if(rec.whatStoodOut && rec.whatStoodOut.toLowerCase().includes(qLower)){
+      results.push({ type:'Looking Back · Stood Out', dateLabel, snippetHtml: highlightMatch(rec.whatStoodOut, q), nav:{kind:'week', monIso} });
     }
   }
 
