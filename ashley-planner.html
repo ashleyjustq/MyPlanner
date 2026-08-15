@@ -180,7 +180,7 @@
   /* Three column lists */
   .col3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
   .meals-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
-  @media(max-width:640px){.col3{grid-template-columns:1fr;} .rest-grid{grid-template-columns:1fr;} .col2{grid-template-columns:1fr !important;} .meals-layout{grid-template-columns:1fr;}}
+  @media(max-width:640px){.col3{grid-template-columns:1fr;} .rest-grid{grid-template-columns:1fr;} .col2{grid-template-columns:1fr !important;} .meals-layout{grid-template-columns:1fr;} .looking-back-grid{grid-template-columns:1fr !important;}}
   .col-head{font-size:12.5px;font-weight:700;margin-bottom:2px;}
   .col-head.pink{color:var(--accent-pink);}
   .col-head.teal2{color:var(--teal);}
@@ -456,6 +456,19 @@
   .move-day-pill:hover:not(:disabled){border-color:var(--work);background:#F0F7FC;}
   .move-day-pill:disabled{opacity:.4;cursor:default;background:#F5F4F1;}
   .move-day-pill.current{border-color:var(--navy);background:var(--navy);color:#fff;}
+
+  .search-modal-card{max-width:440px;}
+  .search-results{max-height:340px;overflow-y:auto;margin-top:12px;}
+  .search-result-item{
+    border:1px solid var(--border);border-radius:10px;padding:10px 12px;
+    margin-bottom:8px;cursor:pointer;
+  }
+  .search-result-item:hover{border-color:var(--work);background:#F0F7FC;}
+  .search-result-meta{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+  .search-result-type{font-size:10.5px;font-weight:700;color:var(--work);text-transform:uppercase;letter-spacing:.03em;}
+  .search-result-date{font-size:11px;color:var(--muted);}
+  .search-result-snippet{font-size:13px;color:var(--ink);line-height:1.4;}
+  .search-result-snippet mark{background:#FFF1B8;color:inherit;border-radius:2px;}
 
   .auth-card{
     background:#fff;border-radius:16px;padding:36px 28px;max-width:340px;width:100%;
@@ -804,6 +817,22 @@
   </div>
 </div>
 
+<!-- SEARCH MODAL -->
+<div class="push-modal-overlay" id="searchModalOverlay">
+  <div class="push-modal-card search-modal-card">
+    <div class="push-modal-title">Search</div>
+    <div class="push-modal-error" id="searchModalHint" style="color:var(--muted);margin-top:0;">Searches Daily Wins and Linger entries (Week &amp; Quarter).</div>
+
+    <input type="text" id="searchInput" class="push-field-input" placeholder="Search…" autocomplete="off">
+
+    <div class="search-results" id="searchResults"></div>
+
+    <div class="push-modal-actions">
+      <button class="push-modal-cancel" id="searchModalCancelBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- AUTH GATE -->
 <div class="auth-gate" id="authGate">
   <div class="auth-card" id="authCardLoading">
@@ -837,6 +866,8 @@
       <span class="drawer-header">Menu</span>
       <button class="drawer-close-btn" id="drawerCloseBtn" aria-label="Close menu">✕</button>
     </div>
+    <button class="drawer-item" id="searchBtn">🔍 Search</button>
+    <div class="drawer-divider"></div>
     <button class="drawer-item" id="exportBtn">⭳ Export backup</button>
     <label class="drawer-item" for="importFile">⭱ Import backup</label>
     <input type="file" id="importFile" accept="application/json" style="display:none;">
@@ -1059,7 +1090,7 @@
       <div class="section-bar">This Week's Top Moves</div>
       <div id="movesList"></div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+      <div class="looking-back-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px;">
         <div>
           <div class="col-head navy2">Looking Back</div>
           <div class="col-sub">What worked → keep</div>
@@ -1069,6 +1100,11 @@
           <div class="col-head navy2">&nbsp;</div>
           <div class="col-sub">What to change → adjust</div>
           <textarea class="win-textarea" id="whatChange" style="min-height:50px;"></textarea>
+        </div>
+        <div>
+          <div class="col-head navy2">&nbsp;</div>
+          <div class="col-sub">What stood out</div>
+          <textarea class="win-textarea" id="whatStoodOut" style="min-height:50px;"></textarea>
         </div>
       </div>
 
@@ -1445,6 +1481,125 @@ function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f
    In-memory data (whatever's currently loaded/visible) is included first and
    always wins — that way Export still captures your real, current work even
    in the middle of a storage outage where fresh reads are failing. */
+/* ---------------- Search: Daily Wins + Week/Quarter Linger ----------------
+   Scans every saved day/week/quarter record for a text match. Each result
+   is clickable and jumps straight to that Day/Week/Quarter. */
+function highlightMatch(text, query){
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if(idx===-1) return escapeHtml(text.slice(0,140));
+  const start = Math.max(0, idx-40);
+  const end = Math.min(text.length, idx+query.length+80);
+  const prefix = start>0 ? '…' : '';
+  const suffix = end<text.length ? '…' : '';
+  const before = escapeHtml(text.slice(start, idx));
+  const match = escapeHtml(text.slice(idx, idx+query.length));
+  const after = escapeHtml(text.slice(idx+query.length, end));
+  return prefix + before + '<mark>' + match + '</mark>' + after + suffix;
+}
+
+async function performSearch(query){
+  const q = query.trim();
+  if(!q) return [];
+  const qLower = q.toLowerCase();
+  const results = [];
+
+  const dayList = await slist('day-');
+  for(const key of (dayList.keys||[])){
+    const iso = key.replace('day-','');
+    const rec = await getDayRecord(iso);
+    if(rec && rec.win && rec.win.toLowerCase().includes(qLower)){
+      results.push({
+        type:'Daily Win',
+        dateLabel: fmtLong(new Date(iso+'T00:00:00')),
+        snippetHtml: highlightMatch(rec.win, q),
+        nav:{kind:'day', iso}
+      });
+    }
+  }
+
+  const weekList = await slist('week-');
+  for(const key of (weekList.keys||[])){
+    const monIso = key.replace('week-','');
+    const rec = await sget(key);
+    if(rec && rec.linger && rec.linger.toLowerCase().includes(qLower)){
+      const mon = new Date(monIso+'T00:00:00');
+      const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+      results.push({
+        type:'Week Linger',
+        dateLabel: fmtShort(mon)+' – '+fmtShort(sun),
+        snippetHtml: highlightMatch(rec.linger, q),
+        nav:{kind:'week', monIso}
+      });
+    }
+  }
+
+  const quarterList = await slist('quarter-');
+  for(const key of (quarterList.keys||[])){
+    const rec = await sget(key);
+    if(rec && rec.linger && rec.linger.toLowerCase().includes(qLower)){
+      results.push({
+        type:'Quarter Linger',
+        dateLabel: (rec.quarter||'')+' '+(rec.year||''),
+        snippetHtml: highlightMatch(rec.linger, q),
+        nav:{kind:'quarter', key}
+      });
+    }
+  }
+
+  return results.slice(0,40);
+}
+
+function openSearchModal(){
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchResults').innerHTML = '';
+  document.getElementById('searchModalOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('searchInput').focus(), 50);
+}
+function closeSearchModal(){
+  document.getElementById('searchModalOverlay').classList.remove('show');
+}
+const runSearchDebounced = debounce(async ()=>{
+  const q = document.getElementById('searchInput').value;
+  const resultsEl = document.getElementById('searchResults');
+  if(!q.trim()){ resultsEl.innerHTML=''; return; }
+  resultsEl.innerHTML = '<div class="empty-hint">Searching…</div>';
+  const results = await performSearch(q);
+  resultsEl.innerHTML='';
+  if(results.length===0){
+    resultsEl.innerHTML = '<div class="empty-hint">No matches.</div>';
+    return;
+  }
+  results.forEach(r=>{
+    const item=document.createElement('div'); item.className='search-result-item';
+    item.innerHTML = '<div class="search-result-meta"><span class="search-result-type">'+r.type+'</span><span class="search-result-date">'+escapeHtml(r.dateLabel)+'</span></div>'
+      + '<div class="search-result-snippet">'+r.snippetHtml+'</div>';
+    item.onclick = ()=>jumpToSearchResult(r.nav);
+    resultsEl.appendChild(item);
+  });
+}, 400);
+
+async function jumpToSearchResult(nav){
+  closeSearchModal();
+  closeDrawer();
+  if(nav.kind==='day'){
+    selectedDate = stripTime(new Date(nav.iso+'T00:00:00'));
+    document.querySelector('.tab-btn[data-view="today"]').click();
+    await loadDay();
+  }else if(nav.kind==='week'){
+    weekViewDate = stripTime(new Date(nav.monIso+'T00:00:00'));
+    document.querySelector('.tab-btn[data-view="week"]').click();
+    await loadWeek();
+  }else if(nav.kind==='quarter'){
+    const m = nav.key.match(/quarter-q(\d)-(\d+)/);
+    if(m){
+      const qNum = parseInt(m[1],10), year = parseInt(m[2],10);
+      quarterViewDate = new Date(year, (qNum-1)*3, 1);
+      document.querySelector('.tab-btn[data-view="quarter"]').click();
+      await loadQuarterTab();
+    }
+  }
+}
+
 const KNOWN_PREFIXES = ['day-','week-','meals-','quarter-'];
 async function exportAllData(){
   const out = {};
@@ -1986,7 +2141,7 @@ function defaultWeek(){
     multiplier:'',
     crucial: [{text:'',why:'',done:false},{text:'',why:'',done:false},{text:'',why:'',done:false}],
     moves:{family:'',personal:'',work:'',church:'',food:''},
-    whatWorked:'', whatChange:'',
+    whatWorked:'', whatChange:'', whatStoodOut:'',
     farm:[{name:'',why:'',move:'',done:false}],
     linger:''
   };
@@ -2234,6 +2389,10 @@ async function init(){
   document.getElementById('pushModalCancelBtn').onclick=()=>closePushModal();
   document.getElementById('pushModalSubmitBtn').onclick=()=>submitPushModal();
   document.getElementById('moveModalCancelBtn').onclick=()=>closeMoveModal();
+
+  document.getElementById('searchBtn').onclick=()=>{ closeDrawer(); openSearchModal(); };
+  document.getElementById('searchModalCancelBtn').onclick=()=>closeSearchModal();
+  document.getElementById('searchInput').oninput=()=>runSearchDebounced();
 }
 function openDrawer(){
   document.getElementById('sideDrawer').classList.add('open');
@@ -2988,6 +3147,8 @@ function renderWeek(){
   wwEl.oninput=()=>{ weekData.whatWorked=wwEl.value; saveWeekDebounced(); };
   const wcEl=document.getElementById('whatChange'); if(document.activeElement!==wcEl) wcEl.value=weekData.whatChange;
   wcEl.oninput=()=>{ weekData.whatChange=wcEl.value; saveWeekDebounced(); };
+  const wsEl=document.getElementById('whatStoodOut'); if(document.activeElement!==wsEl) wsEl.value=weekData.whatStoodOut||'';
+  wsEl.oninput=()=>{ weekData.whatStoodOut=wsEl.value; saveWeekDebounced(); };
 
   const fb=document.getElementById('farmBody'); fb.innerHTML='';
   weekData.farm.forEach((p,i)=>{
