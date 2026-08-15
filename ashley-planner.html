@@ -1331,6 +1331,17 @@ async function handleSession(session){
     currentUser = session.user;
     authGateEl.style.display='none';
     appRootEl.style.display='block';
+    // A refresh token only arrives on the OAuth redirect that granted it (not
+    // on every session check), so only try to store it when it's present.
+    if(session.provider_refresh_token){
+      try{
+        await sb.from('google_tokens').upsert({
+          user_id: currentUser.id,
+          refresh_token: session.provider_refresh_token,
+          updated_at: new Date().toISOString()
+        });
+      }catch(e){ console.error('Failed to store Google refresh token', e); }
+    }
     showLoadingOverlay();
     await init();
     hideLoadingOverlay();
@@ -1593,21 +1604,33 @@ function categoryColorFor(colorId){
 }
 
 /* ---------------- Google Calendar sync ----------------
-   Calls Google's Calendar API directly using the access token from your Google
-   sign-in (session.provider_token) — the calendar.readonly scope requested at
-   login is what makes this token valid for calendar reads. Never writes back.
-   Note: this token is only good for about an hour; if it's expired, sign out
-   and back in to get a fresh one.
+   Gets a fresh access token via the google-token-refresh Edge Function on
+   every sync, instead of relying on the hour-long session token — this is
+   what fixes the "sign out and back in every hour" problem. The Function
+   holds your Client Secret server-side and exchanges your stored refresh
+   token for a new access token each time; nothing sensitive touches the browser.
    btnEl is optional — pass null for a silent background sync (used to
    auto-load the day's events when you navigate to a date, no tap needed). */
+async function getFreshGoogleAccessToken(){
+  try{
+    const { data, error } = await sb.functions.invoke('google-token-refresh', { body: {} });
+    if(error) throw error;
+    if(data && data.error) throw new Error(data.error);
+    if(!data || !data.access_token) throw new Error('No access token returned');
+    return data.access_token;
+  }catch(e){
+    console.error('Google token refresh failed', e);
+    return null;
+  }
+}
+
 let lastCalendarSyncError = null;
 async function syncFromCalendar(dateIso, btnEl){
   if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
-    const { data:{ session } } = await sb.auth.getSession();
-    const token = session && session.provider_token;
+    const token = await getFreshGoogleAccessToken();
     if(!token){
-      throw new Error('No calendar access yet — sign out and back in to grant it');
+      throw new Error('Could not refresh calendar access — sign out and back in once to reconnect');
     }
 
     const dayStart = new Date(dateIso+'T00:00:00');
@@ -1676,9 +1699,8 @@ async function syncFromCalendar(dateIso, btnEl){
    are expanded across every date they cover. Returns { 'YYYY-MM-DD': [titles] }. */
 async function syncMonthAllDayEvents(year, monthIndex){
   try{
-    const { data:{ session } } = await sb.auth.getSession();
-    const token = session && session.provider_token;
-    if(!token) throw new Error('No calendar access — sign out and back in to grant it');
+    const token = await getFreshGoogleAccessToken();
+    if(!token) throw new Error('Could not refresh calendar access — sign out and back in once to reconnect');
     const authHeader = { 'Authorization': 'Bearer '+token };
 
     const timeMin = new Date(year, monthIndex, 1).toISOString();
