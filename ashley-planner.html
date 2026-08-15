@@ -1127,7 +1127,7 @@
 
     <div class="card">
       <div class="card-title-row">
-        <div class="card-title">Monthly Calendar</div>
+        <div class="card-title" id="monthCardTitle">This Month</div>
         <div class="header-badges">
           <span class="header-badge-group"><span class="header-badge-label">Month</span><span class="header-badge" id="monthLabelField">—</span></span>
           <span class="header-badge-group"><span class="header-badge-label">Year</span><span class="header-badge" id="yearLabelField">—</span></span>
@@ -3094,6 +3094,15 @@ function renderMonthTab(){
   document.getElementById('navMonthLabel').textContent = MONTH_NAMES[monthIndex] + ' ' + year;
   document.getElementById('monthLabelField').textContent = MONTH_NAMES[monthIndex];
   document.getElementById('yearLabelField').textContent = String(year);
+
+  // "This Month" / "Next Month" only for those two specific cases — everything
+  // else (past months, or two-plus months ahead) just shows the month name.
+  const todayYear = TODAY.getFullYear(), todayMonth = TODAY.getMonth();
+  const monthsAhead = (year - todayYear)*12 + (monthIndex - todayMonth);
+  const titleEl = document.getElementById('monthCardTitle');
+  if(monthsAhead === 0) titleEl.textContent = 'This Month';
+  else if(monthsAhead === 1) titleEl.textContent = 'Next Month';
+  else titleEl.textContent = MONTH_NAMES[monthIndex];
 
   const hintEl = document.getElementById('monthSyncHint');
   hintEl.textContent = lastMonthSyncError
