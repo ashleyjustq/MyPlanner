@@ -1615,6 +1615,10 @@ async function syncFromCalendar(dateIso, btnEl){
       orderBy: 'startTime',
       maxResults: '50'
     });
+    // Focus Time / Out of Office / Working Location are special "status event"
+    // types — Google's docs say they come back by default, but explicitly
+    // requesting every type is the documented, guaranteed way to get them.
+    ['default','focusTime','outOfOffice','workingLocation'].forEach(t=>params.append('eventTypes', t));
 
     const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?'+params.toString(), {
       headers: { 'Authorization': 'Bearer '+token }
@@ -1627,13 +1631,20 @@ async function syncFromCalendar(dateIso, btnEl){
     const data = await res.json();
 
     const fmtHM = (d)=> String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    const titleFor = (ev)=>{
+      if(ev.summary) return ev.summary;
+      if(ev.eventType==='focusTime') return 'Focus Time';
+      if(ev.eventType==='outOfOffice') return 'Out of Office';
+      if(ev.eventType==='workingLocation') return 'Working Location';
+      return 'Untitled';
+    };
     const events = (data.items||[])
       .filter(ev => ev.start && ev.start.dateTime) // skip all-day events — no meaningful time slot for the timeline
       .map(ev=>{
         const startD = new Date(ev.start.dateTime);
         const endD = (ev.end && ev.end.dateTime) ? new Date(ev.end.dateTime) : new Date(startD.getTime()+30*60000);
         return {
-          title: ev.summary || 'Untitled',
+          title: titleFor(ev),
           start: fmtHM(startD),
           end: fmtHM(endD),
           colorId: ev.colorId || null
