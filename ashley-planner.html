@@ -1066,10 +1066,44 @@
         <div class="toggle-item" id="toggle-prayer-wk"><div class="chk" id="chk-prayer-wk"></div> prayer<span class="habit-streak" id="streak-prayer-wk"></span></div>
         <div class="toggle-item" id="toggle-joy-wk"><div class="chk" id="chk-joy-wk"></div> spark of joy<span class="habit-streak" id="streak-joy-wk"></span></div>
       </div>
-      <div class="water-row">
-        <span class="water-label">Water</span>
-        <div id="waterDropsWk" style="display:flex;gap:6px;"></div>
-        <span style="font-size:11.5px;color:var(--muted);" id="waterCountWk">0 / 8</span>
+
+      <div class="section-bar">Today's Meals</div>
+      <div class="meals-layout">
+        <div>
+          <div id="dayMealsTableWk"></div>
+        </div>
+        <div>
+          <div class="stat-card">
+            <div class="stat-card-label">Water</div>
+            <div class="water-control-row">
+              <button class="stat-round-btn" id="waterMinusBtnWk">−</button>
+              <div class="water-count-big" id="waterCountBigWk">0/8</div>
+              <button class="stat-round-btn" id="waterPlusBtnWk">+</button>
+              <div class="water-pips" id="waterPipsWk"></div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-card-label">Today's Totals</div>
+            <div class="totals-grid">
+              <div class="totals-box">
+                <div class="totals-box-label">Protein</div>
+                <div class="totals-box-value">
+                  <input type="number" id="proteinInputWk" value="0" min="0"><span class="unit">g</span>
+                  <span class="target">/ 100g</span>
+                </div>
+              </div>
+              <div class="totals-box">
+                <div class="totals-box-label">Calories</div>
+                <div class="totals-box-value">
+                  <input type="number" id="caloriesInputWk" value="0" min="0">
+                  <span class="target">/ 1750</span>
+                </div>
+              </div>
+            </div>
+            <div class="totals-remaining" id="proteinRemainingWk">100g protein remaining</div>
+            <div class="totals-remaining" id="caloriesRemainingWk">1750 cal remaining</div>
+          </div>
+        </div>
       </div>
 
       <div class="section-bar maroon">Daily Win</div>
@@ -2390,7 +2424,7 @@ const saveDayMealsDebounced = debounce(()=>{
 function shortDayKeyFor(d){ return WEEK_DAY_KEYS[(d.getDay()+6)%7]; } // Mon=0..Sun=6
 function renderDayMealsTableIfVisible(){
   if(document.getElementById('view-today') && document.getElementById('view-today').classList.contains('active')){
-    renderDayMealsTable();
+    renderDayMealsTable(isWeekendDate(selectedDate) ? 'dayMealsTableWk' : 'dayMealsTable');
   }
 }
 
@@ -3154,13 +3188,34 @@ function renderWeekendDay(){
 
   loadHabitStreaks('-wk');
 
-  const wd = document.getElementById('waterDropsWk'); wd.innerHTML='';
+  renderDayMealsTable('dayMealsTableWk');
+
+  document.getElementById('waterCountBigWk').textContent = dayData.water+'/8';
+  document.getElementById('waterMinusBtnWk').onclick=()=>{ dayData.water=Math.max(0,dayData.water-1); renderWeekendDay(); saveDayDebounced(); };
+  document.getElementById('waterPlusBtnWk').onclick=()=>{ dayData.water=Math.min(8,dayData.water+1); renderWeekendDay(); saveDayDebounced(); };
+  const pipsElWk = document.getElementById('waterPipsWk'); pipsElWk.innerHTML='';
   for(let i=0;i<8;i++){
-    const d=document.createElement('div'); d.className='drop'+(i<dayData.water?' filled':'');
-    d.onclick=()=>{ dayData.water = (dayData.water===i+1) ? i : i+1; renderWeekendDay(); saveDayDebounced(); };
-    wd.appendChild(d);
+    const p=document.createElement('div'); p.className='water-pip'+(i<dayData.water?' filled':'');
+    pipsElWk.appendChild(p);
   }
-  document.getElementById('waterCountWk').textContent = dayData.water+' / 8';
+
+  const proteinElWk = document.getElementById('proteinInputWk');
+  if(document.activeElement !== proteinElWk) proteinElWk.value = dayData.protein;
+  proteinElWk.oninput=()=>{
+    dayData.protein = Math.max(0, parseInt(proteinElWk.value,10)||0);
+    document.getElementById('proteinRemainingWk').textContent = Math.max(0, PROTEIN_TARGET-dayData.protein)+'g protein remaining';
+    saveDayDebounced();
+  };
+  document.getElementById('proteinRemainingWk').textContent = Math.max(0, PROTEIN_TARGET-dayData.protein)+'g protein remaining';
+
+  const caloriesElWk = document.getElementById('caloriesInputWk');
+  if(document.activeElement !== caloriesElWk) caloriesElWk.value = dayData.calories;
+  caloriesElWk.oninput=()=>{
+    dayData.calories = Math.max(0, parseInt(caloriesElWk.value,10)||0);
+    document.getElementById('caloriesRemainingWk').textContent = Math.max(0, CALORIE_TARGET-dayData.calories)+' cal remaining';
+    saveDayDebounced();
+  };
+  document.getElementById('caloriesRemainingWk').textContent = Math.max(0, CALORIE_TARGET-dayData.calories)+' cal remaining';
 
   const winEl = document.getElementById('dailyWinWk');
   if(document.activeElement !== winEl) winEl.value = dayData.win;
@@ -3277,8 +3332,8 @@ function renderWeek(){
 /* Renders just the selected date's row from the same meals record the Week tab
    uses — editing here writes to the same storage key, so it's always in sync
    with the Week tab's Meal Planner for that week. */
-function renderDayMealsTable(){
-  const container = document.getElementById('dayMealsTable');
+function renderDayMealsTable(containerId){
+  const container = document.getElementById(containerId || 'dayMealsTable');
   if(!container) return;
   container.innerHTML='';
   const dayKey = shortDayKeyFor(selectedDate);
