@@ -1043,8 +1043,7 @@
       <div class="card-title-row">
         <div class="card-title">This Week</div>
         <div class="header-badges">
-          <span class="header-badge-group"><span class="header-badge-label">Week</span><span class="header-badge" id="weekWeekNum">1 / 13</span></span>
-          <span class="header-badge" id="weekOfLabel"></span>
+          <span class="badge" id="weekWeekNum">Week 1 / 13</span>
         </div>
       </div>
 
@@ -2854,12 +2853,22 @@ function renderWeekendDay(){
   winEl.oninput=()=>{ dayData.win = winEl.value; saveDayDebounced(); };
 }
 
+/* Full month name(s) for a Mon–Sun range, e.g. "August 10 - 16" or, across a
+   month boundary, "July 28 - August 3". */
+function fmtFullRange(start, end){
+  const startMonth = start.toLocaleDateString('en-US',{month:'long'});
+  const endMonth = end.toLocaleDateString('en-US',{month:'long'});
+  if(startMonth === endMonth){
+    return startMonth + ' ' + start.getDate() + ' - ' + end.getDate();
+  }
+  return startMonth + ' ' + start.getDate() + ' - ' + endMonth + ' ' + end.getDate();
+}
+
 /* ================= WEEK VIEW ================= */
 function renderWeek(){
   const sunEnd = new Date(weekViewDate); sunEnd.setDate(weekViewDate.getDate()+6);
-  document.getElementById('navWeekLabel').textContent = 'Week ' + weekLabel(weekViewDate) + ' · ' + fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
-  document.getElementById('weekWeekNum').textContent = weekLabel(weekViewDate);
-  document.getElementById('weekOfLabel').textContent = fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
+  document.getElementById('navWeekLabel').textContent = fmtFullRange(weekViewDate, sunEnd);
+  document.getElementById('weekWeekNum').textContent = 'Week ' + weekLabel(weekViewDate);
   document.getElementById('mealsWeekOfLabel').textContent = 'Week of ' + fmtShort(weekViewDate) + ' – ' + fmtShort(sunEnd);
 
   const dayNames=[['mon','MON'],['tue','TUE'],['wed','WED'],['thu','THU'],['fri','FRI'],['sat','SAT'],['sun','SUN']];
