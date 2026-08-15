@@ -1819,6 +1819,14 @@ function mondayOfWeek(d){
 }
 function fmtLong(d){ return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
 function fmtShort(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+/* "Today" / "Tomorrow" for exactly those two cases, the actual day name otherwise —
+   mirrors the same pattern used for the Month view's title. */
+function dayTitleFor(date){
+  const diffDays = Math.round((stripTime(date) - stripTime(TODAY)) / 86400000);
+  if(diffDays === 0) return 'Today';
+  if(diffDays === 1) return 'Tomorrow';
+  return date.toLocaleDateString('en-US',{weekday:'long'});
+}
 
 /* Calendar-quarter aware week numbering: "Week 1" always starts the Monday of the
    week containing the 1st of a calendar quarter, and resets once you cross into the
@@ -2657,7 +2665,7 @@ function renderHubspotTasksList(){
 }
 
 function renderWeekdayDay(){
-  document.getElementById('todayDayName').textContent = selectedDate.toLocaleDateString('en-US',{weekday:'long'});
+  document.getElementById('todayDayName').textContent = dayTitleFor(selectedDate);
 
   ['free','focus','buffer'].forEach(t=>{
     const p = document.getElementById('pill-'+t);
@@ -2773,7 +2781,7 @@ function renderWeekdayDay(){
 }
 
 function renderWeekendDay(){
-  document.getElementById('weekendDayName').textContent = selectedDate.toLocaleDateString('en-US',{weekday:'long'});
+  document.getElementById('weekendDayName').textContent = dayTitleFor(selectedDate);
 
   ['free','focus','buffer'].forEach(t=>{
     const p = document.getElementById('pill-'+t+'-wk');
