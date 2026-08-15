@@ -292,6 +292,11 @@
   /* Today toggles / water */
   .today-toggles{display:flex;gap:22px;flex-wrap:wrap;margin-bottom:14px;}
   .toggle-item{display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;}
+  .habit-streak{
+    font-size:11px;font-weight:700;color:#E8763C;background:#FFF1E8;
+    border-radius:10px;padding:1px 7px;margin-left:2px;display:none;
+  }
+  .habit-streak.show{display:inline-block;}
   .water-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .water-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;}
   .drop{
@@ -972,10 +977,10 @@
 
       <div class="section-bar">Habits</div>
       <div class="today-toggles">
-        <div class="toggle-item" id="toggle-workout"><div class="chk" id="chk-workout"></div> workout</div>
-        <div class="toggle-item" id="toggle-bible"><div class="chk" id="chk-bible"></div> bible reading</div>
-        <div class="toggle-item" id="toggle-prayer"><div class="chk" id="chk-prayer"></div> prayer</div>
-        <div class="toggle-item" id="toggle-joy"><div class="chk" id="chk-joy"></div> spark of joy</div>
+        <div class="toggle-item" id="toggle-workout"><div class="chk" id="chk-workout"></div> workout<span class="habit-streak" id="streak-workout"></span></div>
+        <div class="toggle-item" id="toggle-bible"><div class="chk" id="chk-bible"></div> bible reading<span class="habit-streak" id="streak-bible"></span></div>
+        <div class="toggle-item" id="toggle-prayer"><div class="chk" id="chk-prayer"></div> prayer<span class="habit-streak" id="streak-prayer"></span></div>
+        <div class="toggle-item" id="toggle-joy"><div class="chk" id="chk-joy"></div> spark of joy<span class="habit-streak" id="streak-joy"></span></div>
       </div>
 
       <div class="section-bar maroon">Daily Win</div>
@@ -1011,10 +1016,10 @@
       </div>
 
       <div class="today-toggles" style="margin-top:14px;">
-        <div class="toggle-item" id="toggle-workout-wk"><div class="chk" id="chk-workout-wk"></div> workout</div>
-        <div class="toggle-item" id="toggle-bible-wk"><div class="chk" id="chk-bible-wk"></div> bible reading</div>
-        <div class="toggle-item" id="toggle-prayer-wk"><div class="chk" id="chk-prayer-wk"></div> prayer</div>
-        <div class="toggle-item" id="toggle-joy-wk"><div class="chk" id="chk-joy-wk"></div> spark of joy</div>
+        <div class="toggle-item" id="toggle-workout-wk"><div class="chk" id="chk-workout-wk"></div> workout<span class="habit-streak" id="streak-workout-wk"></span></div>
+        <div class="toggle-item" id="toggle-bible-wk"><div class="chk" id="chk-bible-wk"></div> bible reading<span class="habit-streak" id="streak-bible-wk"></span></div>
+        <div class="toggle-item" id="toggle-prayer-wk"><div class="chk" id="chk-prayer-wk"></div> prayer<span class="habit-streak" id="streak-prayer-wk"></span></div>
+        <div class="toggle-item" id="toggle-joy-wk"><div class="chk" id="chk-joy-wk"></div> spark of joy<span class="habit-streak" id="streak-joy-wk"></span></div>
       </div>
       <div class="water-row">
         <span class="water-label">Water</span>
@@ -2039,6 +2044,49 @@ async function getDayRecord(iso){
   return rec;
 }
 
+/* Counts consecutive checked days for a habit, ending at fromDate and walking
+   backward. If fromDate itself isn't checked yet, counting starts the day
+   before (so "in-progress today" doesn't zero out yesterday's momentum).
+   Capped at 400 days back as a sanity limit, not a real constraint. */
+async function computeHabitStreak(habitField, fromDate){
+  const fromIso = isoDate(fromDate);
+  const fromRec = (fromIso===isoDate(selectedDate) && dayData) ? dayData : await getDayRecord(fromIso);
+  let cursor = new Date(fromDate);
+  if(!(fromRec && fromRec[habitField])){
+    cursor.setDate(cursor.getDate()-1);
+  }
+  let count = 0;
+  for(let i=0;i<400;i++){
+    const iso = isoDate(cursor);
+    const rec = (iso===isoDate(selectedDate) && dayData) ? dayData : await getDayRecord(iso);
+    if(rec && rec[habitField]){
+      count++;
+      cursor.setDate(cursor.getDate()-1);
+    }else{
+      break;
+    }
+  }
+  return count;
+}
+
+/* Kicks off streak calculation for all 4 habits in the background and fills
+   in the badges as each resolves — doesn't block the rest of the page. */
+function loadHabitStreaks(suffix){
+  const fields = [['workout','workout'+suffix],['bibleReading','bible'+suffix],['prayer','prayer'+suffix],['sparkOfJoy','joy'+suffix]];
+  fields.forEach(([field, elId])=>{
+    computeHabitStreak(field, selectedDate).then(count=>{
+      const el = document.getElementById('streak-'+elId);
+      if(!el) return;
+      if(count>=2){
+        el.textContent = '🔥 '+count;
+        el.classList.add('show');
+      }else{
+        el.classList.remove('show');
+      }
+    });
+  });
+}
+
 /* One pass over the quarter's stored days for a given date range. Cheap after the
    first call for any given day, since getDayRecord caches. */
 async function computeQuarterCounts(bounds){
@@ -2747,6 +2795,8 @@ function renderWeekdayDay(){
   chkJ.className='chk'+(dayData.sparkOfJoy?' checked':'');
   document.getElementById('toggle-joy').onclick=()=>{ dayData.sparkOfJoy=!dayData.sparkOfJoy; renderWeekdayDay(); saveDayDebounced(); };
 
+  loadHabitStreaks('');
+
   document.getElementById('waterCountBig').textContent = dayData.water+'/8';
   document.getElementById('waterMinusBtn').onclick=()=>{ dayData.water=Math.max(0,dayData.water-1); renderWeekdayDay(); saveDayDebounced(); };
   document.getElementById('waterPlusBtn').onclick=()=>{ dayData.water=Math.min(8,dayData.water+1); renderWeekdayDay(); saveDayDebounced(); };
@@ -2839,6 +2889,8 @@ function renderWeekendDay(){
   const chkJwk = document.getElementById('chk-joy-wk');
   chkJwk.className='chk'+(dayData.sparkOfJoy?' checked':'');
   document.getElementById('toggle-joy-wk').onclick=()=>{ dayData.sparkOfJoy=!dayData.sparkOfJoy; renderWeekendDay(); saveDayDebounced(); };
+
+  loadHabitStreaks('-wk');
 
   const wd = document.getElementById('waterDropsWk'); wd.innerHTML='';
   for(let i=0;i<8;i++){
