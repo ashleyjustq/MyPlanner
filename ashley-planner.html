@@ -334,6 +334,18 @@
   .totals-box-value input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
   .totals-remaining{font-size:13px;color:var(--muted);line-height:1.6;}
 
+  /* My Health (Quarter tab) */
+  .totals-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+  .totals-grid.cols-3 .totals-box-value{font-size:18px;}
+  .health-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+  .health-row:last-child{border-bottom:none;}
+  .health-row-label{font-size:14px;color:var(--ink);font-weight:600;}
+  .health-row-change{font-size:14px;font-weight:700;display:flex;align-items:center;gap:4px;}
+  .health-arrow{font-size:15px;line-height:1;}
+  .trend-good{color:#2E9E5B;}
+  .trend-bad{color:var(--personal);}
+  .health-flat{color:var(--muted);font-weight:400;font-size:13px;}
+
   .win-textarea{
     width:100%;min-height:70px;border:none;background:transparent;
     font-family:inherit;font-size:14px;color:var(--ink);resize:vertical;line-height:1.6;
@@ -1354,6 +1366,33 @@
 
       <div class="section-bar teal">Linger <span class="sub">what is God saying this quarter?</span></div>
       <textarea class="win-textarea" id="quarterLinger" style="min-height:150px;"></textarea>
+
+      <div class="section-bar">My Health</div>
+      <div class="stat-card">
+        <div class="stat-card-label">Body Stats — This Quarter</div>
+        <div class="health-row"><div class="health-row-label">Weight</div><div class="health-row-change" id="healthChangeWeight">—</div></div>
+        <div class="health-row"><div class="health-row-label">Body Water</div><div class="health-row-change" id="healthChangeWater">—</div></div>
+        <div class="health-row"><div class="health-row-label">Muscle</div><div class="health-row-change" id="healthChangeMuscle">—</div></div>
+        <div class="health-row"><div class="health-row-label">Protein</div><div class="health-row-change" id="healthChangeProtein">—</div></div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card-label">Daily Averages — This Quarter</div>
+        <div class="totals-grid cols-3">
+          <div class="totals-box">
+            <div class="totals-box-label">Avg Water</div>
+            <div class="totals-box-value" id="healthAvgWater">—</div>
+          </div>
+          <div class="totals-box">
+            <div class="totals-box-label">Avg Protein</div>
+            <div class="totals-box-value" id="healthAvgProtein">—</div>
+          </div>
+          <div class="totals-box">
+            <div class="totals-box-label">Avg Calories</div>
+            <div class="totals-box-value" id="healthAvgCalories">—</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2431,6 +2470,101 @@ async function computeQuarterCounts(bounds){
   return counts;
 }
 
+/* My Health (Quarter tab): body-composition trend (first vs. last logged weekly
+   average within the quarter, per field independently since fields are often
+   filled in separately) + daily averages for water/protein/calories, computed
+   only from days that actually have that stat logged (0 = not logged, skipped —
+   so a day where only habits were checked doesn't drag the average down). */
+const HEALTH_GOOD_DIRECTION = { weight:'down', water:'up', muscle:'up', protein:'up' };
+async function computeHealthQuarterStats(bounds){
+  const stats = {
+    body: { weight:null, water:null, muscle:null, protein:null },
+    avg: { water:null, protein:null, calories:null }
+  };
+  try{
+    // Daily averages
+    const dayList = await slist('day-');
+    const sums = { water:0, protein:0, calories:0 };
+    const counts = { water:0, protein:0, calories:0 };
+    if(dayList && dayList.keys){
+      for(const k of dayList.keys){
+        const iso = k.replace('day-','');
+        if(!isoWithinBounds(iso, bounds)) continue;
+        const rec = await getDayRecord(iso);
+        if(!rec) continue;
+        if(rec.water>0){ sums.water+=rec.water; counts.water++; }
+        if(rec.protein>0){ sums.protein+=rec.protein; counts.protein++; }
+        if(rec.calories>0){ sums.calories+=rec.calories; counts.calories++; }
+      }
+    }
+    stats.avg.water = counts.water ? sums.water/counts.water : null;
+    stats.avg.protein = counts.protein ? sums.protein/counts.protein : null;
+    stats.avg.calories = counts.calories ? sums.calories/counts.calories : null;
+
+    // Body composition trend
+    const weekList = await slist('week-');
+    const fields = ['weight','water','muscle','protein'];
+    const entries = {weight:[],water:[],muscle:[],protein:[]};
+    if(weekList && weekList.keys){
+      const weekIsos = weekList.keys.map(k=>k.replace('week-','')).filter(iso=>isoWithinBounds(iso,bounds)).sort();
+      for(const iso of weekIsos){
+        const rec = await sget('week-'+iso);
+        if(!rec || !rec.body) continue;
+        fields.forEach(f=>{
+          const v = parseFloat(rec.body[f]);
+          if(!isNaN(v)) entries[f].push(v);
+        });
+      }
+    }
+    fields.forEach(f=>{
+      const list = entries[f];
+      if(list.length>=1) stats.body[f] = { start:list[0], end:list[list.length-1] };
+    });
+  }catch(e){ /* storage unsupported, skip */ }
+  return stats;
+}
+const HEALTH_CHANGE_EL = { weight:'healthChangeWeight', water:'healthChangeWater', muscle:'healthChangeMuscle', protein:'healthChangeProtein' };
+function renderHealthChange(field, data){
+  const el = document.getElementById(HEALTH_CHANGE_EL[field]);
+  if(!el) return;
+  if(!data){ el.innerHTML = '<span class="health-flat">not enough data yet</span>'; return; }
+  const delta = data.end - data.start;
+  const rounded = Math.abs(Math.round(delta*10)/10);
+  if(rounded === 0){ el.innerHTML = '<span class="health-flat">no change</span>'; return; }
+  const goingDown = delta < 0;
+  const isGood = (goingDown && HEALTH_GOOD_DIRECTION[field]==='down') || (!goingDown && HEALTH_GOOD_DIRECTION[field]==='up');
+  const cls = isGood ? 'trend-good' : 'trend-bad';
+  const arrow = goingDown ? '▼' : '▲';
+  const text = field==='weight'
+    ? (rounded+' lbs '+(goingDown?'lost':'gained'))
+    : (rounded+'% '+(goingDown?'down':'up'));
+  el.innerHTML = '<span class="health-arrow '+cls+'">'+arrow+'</span><span class="'+cls+'">'+text+'</span>';
+}
+function renderHealthAvg(id, value, suffix, decimals){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(value===null){ el.textContent = '—'; return; }
+  const rounded = Math.round(value*Math.pow(10,decimals))/Math.pow(10,decimals);
+  el.textContent = rounded + (suffix ? ' '+suffix : '');
+}
+let browsedQuarterHealth = { body:{weight:null,water:null,muscle:null,protein:null}, avg:{water:null,protein:null,calories:null} };
+async function rescanBrowsedQuarterHealth(){
+  const bounds = quarterBoundsFromLabel(browsedQuarterData.quarter, browsedQuarterData.year);
+  browsedQuarterHealth = await computeHealthQuarterStats(bounds);
+  updateBrowsedQuarterHealthUI();
+}
+function updateBrowsedQuarterHealthUI(){
+  const s = browsedQuarterHealth;
+  renderHealthChange('weight', s.body.weight);
+  renderHealthChange('water', s.body.water);
+  renderHealthChange('muscle', s.body.muscle);
+  renderHealthChange('protein', s.body.protein);
+  renderHealthAvg('healthAvgWater', s.avg.water, 'cups', 1);
+  renderHealthAvg('healthAvgProtein', s.avg.protein, 'g', 0);
+  renderHealthAvg('healthAvgCalories', s.avg.calories, 'cal', 0);
+}
+
+
 function saveCurrentDay(){
   const key = currentDayKey;
   const iso = key.replace('day-','');
@@ -2663,6 +2797,7 @@ async function loadQuarterTab(){
   }
 
   await rescanBrowsedQuarterCounts();
+  await rescanBrowsedQuarterHealth();
   renderQuarterTab();
 }
 async function loadMonthTab(){
