@@ -1220,7 +1220,7 @@
       <div class="section-bar">My Body</div>
       <div class="stat-card">
         <div class="stat-card-label">Weekly Averages</div>
-        <div class="totals-grid">
+        <div class="totals-grid cols-3">
           <div class="totals-box">
             <div class="totals-box-label">Avg Weight</div>
             <div class="totals-box-value">
@@ -1231,6 +1231,12 @@
             <div class="totals-box-label">Avg Body Water</div>
             <div class="totals-box-value">
               <input type="number" id="avgWaterInput" value="0" min="0" max="100" step="0.1"><span class="unit">%</span>
+            </div>
+          </div>
+          <div class="totals-box">
+            <div class="totals-box-label">Avg Fat</div>
+            <div class="totals-box-value">
+              <input type="number" id="avgFatInput" value="0" min="0" max="100" step="0.1"><span class="unit">%</span>
             </div>
           </div>
           <div class="totals-box">
@@ -1377,6 +1383,7 @@
         <div class="stat-card-label">Body Stats — This Quarter</div>
         <div class="health-row"><div class="health-row-label">Weight</div><div class="health-row-change" id="healthChangeWeight">—</div></div>
         <div class="health-row"><div class="health-row-label">Body Water</div><div class="health-row-change" id="healthChangeWater">—</div></div>
+        <div class="health-row"><div class="health-row-label">Fat</div><div class="health-row-change" id="healthChangeFat">—</div></div>
         <div class="health-row"><div class="health-row-label">Muscle</div><div class="health-row-change" id="healthChangeMuscle">—</div></div>
         <div class="health-row"><div class="health-row-label">Protein</div><div class="health-row-change" id="healthChangeProtein">—</div></div>
       </div>
@@ -2332,7 +2339,7 @@ function defaultWeek(){
     multiplier:'',
     crucial: [{text:'',why:'',done:false},{text:'',why:'',done:false},{text:'',why:'',done:false}],
     moves:{family:'',personal:'',work:'',church:'',food:''},
-    body:{weight:'',water:'',muscle:'',protein:''},
+    body:{weight:'',water:'',fat:'',muscle:'',protein:''},
     whatWorked:'', whatChange:'', whatStoodOut:'',
     farm:[{name:'',why:'',move:'',done:false}],
     linger:''
@@ -2480,10 +2487,10 @@ async function computeQuarterCounts(bounds){
    filled in separately) + daily averages for water/protein/calories, computed
    only from days that actually have that stat logged (0 = not logged, skipped —
    so a day where only habits were checked doesn't drag the average down). */
-const HEALTH_GOOD_DIRECTION = { weight:'down', water:'up', muscle:'up', protein:'up' };
+const HEALTH_GOOD_DIRECTION = { weight:'down', water:'up', fat:'down', muscle:'up', protein:'up' };
 async function computeHealthQuarterStats(bounds){
   const stats = {
-    body: { weight:null, water:null, muscle:null, protein:null },
+    body: { weight:null, water:null, fat:null, muscle:null, protein:null },
     avg: { water:null, protein:null, calories:null }
   };
   try{
@@ -2508,8 +2515,8 @@ async function computeHealthQuarterStats(bounds){
 
     // Body composition trend
     const weekList = await slist('week-');
-    const fields = ['weight','water','muscle','protein'];
-    const entries = {weight:[],water:[],muscle:[],protein:[]};
+    const fields = ['weight','water','fat','muscle','protein'];
+    const entries = {weight:[],water:[],fat:[],muscle:[],protein:[]};
     if(weekList && weekList.keys){
       const weekIsos = weekList.keys.map(k=>k.replace('week-','')).filter(iso=>isoWithinBounds(iso,bounds)).sort();
       for(const iso of weekIsos){
@@ -2528,7 +2535,7 @@ async function computeHealthQuarterStats(bounds){
   }catch(e){ /* storage unsupported, skip */ }
   return stats;
 }
-const HEALTH_CHANGE_EL = { weight:'healthChangeWeight', water:'healthChangeWater', muscle:'healthChangeMuscle', protein:'healthChangeProtein' };
+const HEALTH_CHANGE_EL = { weight:'healthChangeWeight', water:'healthChangeWater', fat:'healthChangeFat', muscle:'healthChangeMuscle', protein:'healthChangeProtein' };
 function renderHealthChange(field, data){
   const el = document.getElementById(HEALTH_CHANGE_EL[field]);
   if(!el) return;
@@ -2552,7 +2559,7 @@ function renderHealthAvg(id, value, suffix, decimals){
   const rounded = Math.round(value*Math.pow(10,decimals))/Math.pow(10,decimals);
   el.textContent = rounded + (suffix ? ' '+suffix : '');
 }
-let browsedQuarterHealth = { body:{weight:null,water:null,muscle:null,protein:null}, avg:{water:null,protein:null,calories:null} };
+let browsedQuarterHealth = { body:{weight:null,water:null,fat:null,muscle:null,protein:null}, avg:{water:null,protein:null,calories:null} };
 async function rescanBrowsedQuarterHealth(){
   const bounds = quarterBoundsFromLabel(browsedQuarterData.quarter, browsedQuarterData.year);
   browsedQuarterHealth = await computeHealthQuarterStats(bounds);
@@ -2562,6 +2569,7 @@ function updateBrowsedQuarterHealthUI(){
   const s = browsedQuarterHealth;
   renderHealthChange('weight', s.body.weight);
   renderHealthChange('water', s.body.water);
+  renderHealthChange('fat', s.body.fat);
   renderHealthChange('muscle', s.body.muscle);
   renderHealthChange('protein', s.body.protein);
   renderHealthAvg('healthAvgWater', s.avg.water, 'cups', 1);
@@ -2767,7 +2775,8 @@ async function loadWeek(){
   currentMealsKey = 'meals-' + iso;
   weekData = (await sget(currentWeekKey)) || seedWeek(iso);
   if(!weekData.hubspotTasksByDay) weekData.hubspotTasksByDay = {};
-  if(!weekData.body) weekData.body = {weight:'',water:'',muscle:'',protein:''};
+  if(!weekData.body) weekData.body = {weight:'',water:'',fat:'',muscle:'',protein:''};
+  if(!('fat' in weekData.body)) weekData.body.fat = '';
 
   if(currentMealsKey === dayMealsKey && dayMealsData){
     mealsData = dayMealsData; // same week the Day tab is showing — share it live
@@ -3457,6 +3466,8 @@ function renderWeek(){
   bwEl.oninput=()=>{ weekData.body.weight=bwEl.value; saveWeekDebounced(); };
   const bwaEl=document.getElementById('avgWaterInput'); if(document.activeElement!==bwaEl) bwaEl.value=weekData.body.water;
   bwaEl.oninput=()=>{ weekData.body.water=bwaEl.value; saveWeekDebounced(); };
+  const bfEl=document.getElementById('avgFatInput'); if(document.activeElement!==bfEl) bfEl.value=weekData.body.fat;
+  bfEl.oninput=()=>{ weekData.body.fat=bfEl.value; saveWeekDebounced(); };
   const bmEl=document.getElementById('avgMuscleInput'); if(document.activeElement!==bmEl) bmEl.value=weekData.body.muscle;
   bmEl.oninput=()=>{ weekData.body.muscle=bmEl.value; saveWeekDebounced(); };
   const bpEl=document.getElementById('avgBodyProteinInput'); if(document.activeElement!==bpEl) bpEl.value=weekData.body.protein;
