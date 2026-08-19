@@ -113,6 +113,33 @@
   .view{display:none;}
   .view.active{display:block;}
 
+  /* ---- Role-based visibility ----
+     body.role-david / body.role-ashley are set once at sign-in (see
+     handleSession). Everything tagged .role-ashley-only is a section David's
+     account never sees; .role-david-only is the reverse. Quarter is Ashley-
+     only entirely (tab + view), per her explicit scope. */
+  body.role-david .role-ashley-only{display:none !important;}
+  body.role-ashley .role-david-only{display:none !important;}
+  body.role-david .tab-btn[data-view="quarter"]{display:none !important;}
+  body.role-david #view-quarter{display:none !important;}
+  /* Day view's col2 layout assumes both the calendar timeline and the tasks
+     column are present (1fr 1.3fr). David only gets the tasks column, so it
+     should take the full width rather than leaving a blank gap. */
+  body.role-david #weekdayCard .col2{grid-template-columns:1fr;}
+
+  .view-as-david-btn{
+    background:var(--paper2,#f4efe6);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:5px 10px;
+    font-family:inherit;
+    font-size:12px;
+    font-weight:600;
+    color:var(--navy);
+    cursor:pointer;
+  }
+  .view-as-david-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+
   /* ---- Card / section ---- */
   .card{
     background:var(--paper);
@@ -474,6 +501,20 @@
     font-size:14px;color:var(--ink);background:#F5F4F1;border-radius:8px;
     padding:9px 12px;margin-bottom:4px;
   }
+  .task-detail-meta{margin-bottom:10px;}
+  .task-detail-row{
+    display:flex;gap:8px;font-size:12.5px;color:var(--muted);margin-top:8px;
+  }
+  .task-detail-row .label{font-weight:600;color:var(--ink);min-width:70px;flex-shrink:0;}
+  .task-detail-notes{
+    font-size:13px;color:var(--ink);white-space:pre-wrap;line-height:1.4;
+    background:#F5F4F1;border-radius:8px;padding:9px 12px;margin-top:4px;
+  }
+  .event-pill{
+    display:inline-block;color:#fff;font-weight:600;font-size:14px;
+    border-radius:999px;padding:8px 16px;max-width:100%;
+    white-space:normal;word-break:break-word;
+  }
   .move-day-pills{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;}
   .move-day-pill{
     border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:10px 4px;
@@ -817,7 +858,7 @@
       <option value="">— none —</option>
     </select>
 
-    <label class="push-field-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+    <label class="push-field-label role-ashley-only" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
       <input type="checkbox" id="pushAssignDavidCheck" style="width:auto;">
       Assign to David
     </label>
@@ -836,6 +877,7 @@
   <div class="push-modal-card">
     <div class="push-modal-title">Move Task</div>
     <div class="move-modal-task-name" id="moveModalTaskName"></div>
+    <div class="task-detail-meta" id="moveModalTaskMeta"></div>
 
     <label class="push-field-label" for="moveModalDayPicker">Move to</label>
     <div class="move-day-pills" id="moveDayPills"></div>
@@ -844,6 +886,34 @@
 
     <div class="push-modal-actions">
       <button class="push-modal-cancel" id="moveModalCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TASK DETAIL MODAL -->
+<div class="push-modal-overlay" id="taskDetailModalOverlay">
+  <div class="push-modal-card">
+    <div class="push-modal-title" id="taskDetailName">Task</div>
+    <div class="task-detail-meta" id="taskDetailMeta"></div>
+
+    <div class="push-modal-actions">
+      <button class="push-modal-cancel" id="taskDetailCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MONTH EVENT DETAIL MODAL -->
+<div class="push-modal-overlay" id="monthEventModalOverlay">
+  <div class="push-modal-card">
+    <div class="push-modal-title">Event</div>
+    <div class="event-pill" id="monthEventPill"></div>
+    <div class="task-detail-row" style="margin-top:12px;">
+      <span class="label">Date</span>
+      <span id="monthEventDate"></span>
+    </div>
+
+    <div class="push-modal-actions">
+      <button class="push-modal-cancel" id="monthEventCloseBtn">Close</button>
     </div>
   </div>
 </div>
@@ -952,7 +1022,7 @@
         <div>
           <div class="card-title" id="todayDayName">Tuesday</div>
         </div>
-        <div style="display:flex;gap:6px;">
+        <div style="display:flex;gap:6px;" class="role-ashley-only">
           <button class="type-pill" data-daytype="free" id="pill-free">free</button>
           <button class="type-pill" data-daytype="focus" id="pill-focus">focus</button>
           <button class="type-pill" data-daytype="buffer" id="pill-buffer">buffer</button>
@@ -969,7 +1039,7 @@
       </div>
 
       <div class="col2" style="display:grid;grid-template-columns:1fr 1.3fr;gap:16px;">
-        <div>
+        <div class="role-ashley-only">
           <div class="section-bar" style="display:flex;justify-content:space-between;align-items:center;">
             <span>Today's Shape</span>
             <button class="sync-btn" id="syncCalendarBtn">↻ Sync</button>
@@ -982,12 +1052,15 @@
 
         <div>
           <div class="section-bar" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>Planned Tasks</span>
+            <span id="plannedTasksLabel">Planned Tasks</span>
             <button class="sync-btn" id="syncHubspotBtn">↻ Sync</button>
           </div>
           <div id="hubspotTasksList"></div>
 
-          <div class="section-bar">New Tasks</div>
+          <div class="section-bar" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>New Tasks</span>
+            <button class="view-as-david-btn role-ashley-only" id="viewDavidDayBtn">View David's Tasks</button>
+          </div>
           <div id="otherTasksList"></div>
           <div class="add-row">
             <button class="add-btn" id="addTaskBtn">+ add task</button>
@@ -1003,9 +1076,9 @@
         <div class="toggle-item" id="toggle-joy"><div class="chk" id="chk-joy"></div> spark of joy<span class="habit-streak" id="streak-joy"></span></div>
       </div>
 
-      <div class="section-bar">Today's Meals</div>
+      <div class="section-bar role-ashley-only">Today's Meals</div>
 
-      <div class="meals-layout">
+      <div class="meals-layout role-ashley-only">
         <div>
           <div id="dayMealsTable"></div>
         </div>
@@ -1050,7 +1123,7 @@
     </div>
 
     <!-- Weekend template -->
-    <div class="card" id="weekendCard" style="display:none;">
+    <div class="card role-ashley-only" id="weekendCard" style="display:none;">
       <div class="card-title-row" style="margin-bottom:10px;">
         <div class="card-title" id="weekendDayName" style="font-size:20px;">Saturday</div>
         <div style="display:flex;gap:6px;">
@@ -1149,14 +1222,14 @@
         </div>
       </div>
 
-      <div class="section-bar">Set the Shape <span class="sub">rest days first</span></div>
-      <div class="week-days" id="weekDaysGrid"></div>
-      <div class="rest-hint" style="margin-bottom:6px;">Tap a day's name to jump to that Day page.</div>
+      <div class="section-bar role-ashley-only">Set the Shape <span class="sub">rest days first</span></div>
+      <div class="week-days role-ashley-only" id="weekDaysGrid"></div>
+      <div class="rest-hint role-ashley-only" style="margin-bottom:6px;">Tap a day's name to jump to that Day page.</div>
 
       <div class="section-bar">This Week's Top Moves</div>
       <div id="movesList"></div>
 
-      <div class="looking-back-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px;">
+      <div class="looking-back-grid role-ashley-only" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px;">
         <div>
           <div class="col-head navy2">Looking Back</div>
           <div class="col-sub">What worked → keep</div>
@@ -1179,22 +1252,25 @@
         </div>
       </div>
 
-      <div class="section-bar">Farm List <span class="sub">relationships to focus on</span></div>
-      <table class="farm-table" id="farmTable">
+      <div class="section-bar role-ashley-only">Farm List <span class="sub">relationships to focus on</span></div>
+      <table class="farm-table role-ashley-only" id="farmTable">
         <thead><tr><th style="width:24px"></th><th>Name</th><th>This week's move</th><th></th></tr></thead>
         <tbody id="farmBody"></tbody>
       </table>
-      <div class="add-row"><button class="add-btn" id="addFarmBtn">+ add person</button></div>
+      <div class="add-row role-ashley-only"><button class="add-btn" id="addFarmBtn">+ add person</button></div>
 
-      <div class="section-bar teal">Linger <span class="sub">what is God saying this week?</span></div>
-      <textarea class="win-textarea" id="weekLinger" style="min-height:60px;"></textarea>
+      <div class="section-bar teal role-ashley-only">Linger <span class="sub">what is God saying this week?</span></div>
+      <textarea class="win-textarea role-ashley-only" id="weekLinger" style="min-height:60px;"></textarea>
     </div>
 
     <!-- TASK PLANNER -->
     <div class="card">
       <div class="card-title-row">
         <div class="card-title" style="font-size:19px;">Task Planner</div>
-        <button class="sync-btn" id="syncWeekTasksBtn">↻ Sync</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="view-as-david-btn role-ashley-only" id="viewDavidWeekBtn">View David's Week</button>
+          <button class="sync-btn" id="syncWeekTasksBtn">↻ Sync</button>
+        </div>
       </div>
       <div class="rest-hint" id="weekTasksHint" style="margin-bottom:6px;">Planned tasks from HubSpot for this week.</div>
       <div class="meal-grid-wrap">
@@ -1206,7 +1282,7 @@
     </div>
 
     <!-- MEAL PLANNER -->
-    <div class="card">
+    <div class="card role-ashley-only">
       <div class="card-title-row">
         <div class="card-title" style="font-size:19px;">Meal Planner</div>
         <div class="field-inline" id="mealsWeekOfLabel"></div>
@@ -1224,7 +1300,7 @@
     </div>
 
     <!-- MY BODY -->
-    <div class="card">
+    <div class="card role-ashley-only">
       <div class="card-title-row">
         <div class="card-title" style="font-size:19px;">My Body</div>
       </div>
@@ -1421,36 +1497,6 @@
 
 </div>
 
-<!-- DAVID'S TASK VIEW — deliberately minimal: no calendar, no HubSpot client
-     data, just his own unassigned tasks. Mirrors the card/pill visual style
-     of the main app rather than reusing its markup, since none of the day/
-     week/month/quarter machinery applies here. -->
-<div class="app" id="davidRoot" style="display:none;">
-  <div class="card" style="max-width:640px;margin:0 auto;">
-    <div class="card-header-row" style="display:flex;align-items:center;justify-content:space-between;">
-      <span class="card-title">My Tasks</span>
-      <button class="push-modal-cancel" id="davidSignOutBtn" style="width:auto;padding:6px 14px;">Sign out</button>
-    </div>
-
-    <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0;">
-      <button class="tab-btn" id="davidDayPrev" style="width:auto;padding:6px 12px;">‹</button>
-      <div id="davidDayLabel" style="font-weight:600;min-width:170px;text-align:center;"></div>
-      <button class="tab-btn" id="davidDayNext" style="width:auto;padding:6px 12px;">›</button>
-    </div>
-    <div style="text-align:center;margin-bottom:14px;">
-      <button class="tab-btn" id="davidJumpToday" style="width:auto;padding:6px 14px;">Today</button>
-    </div>
-
-    <div id="davidTaskList"></div>
-
-    <div style="display:flex;gap:8px;margin-top:16px;">
-      <input type="text" id="davidNewTaskInput" class="push-field-input" placeholder="Add a task…" style="flex:1;">
-      <button class="push-modal-submit" id="davidAddTaskBtn" style="width:auto;padding:8px 16px;">Add</button>
-    </div>
-    <div class="push-modal-error" id="davidTaskError"></div>
-  </div>
-</div>
-
 <div class="storage-error" id="storageError"></div>
 <div class="saved-note" id="savedNote">Saved</div>
 
@@ -1539,7 +1585,6 @@ function hideLoadingOverlay(){ document.getElementById('loadingOverlay').classLi
 async function handleSession(session){
   const authGateEl=document.getElementById('authGate');
   const appRootEl=document.getElementById('appRoot');
-  const davidRootEl=document.getElementById('davidRoot');
   const loadingCard=document.getElementById('authCardLoading');
   const signInCard=document.getElementById('authCardSignIn');
   const deniedCard=document.getElementById('authCardDenied');
@@ -1548,15 +1593,19 @@ async function handleSession(session){
     ? ALLOWED_ROLES[session.user.email.toLowerCase()]
     : null;
 
-  if(roleForSession === 'ashley'){
+  if(roleForSession === 'ashley' || roleForSession === 'david'){
     currentUser = session.user;
-    currentRole = 'ashley';
+    currentRole = roleForSession;
+    document.body.classList.toggle('role-ashley', currentRole==='ashley');
+    document.body.classList.toggle('role-david', currentRole==='david');
     authGateEl.style.display='none';
-    davidRootEl.style.display='none';
     appRootEl.style.display='block';
     // A refresh token only arrives on the OAuth redirect that granted it (not
     // on every session check), so only try to store it when it's present.
-    if(session.provider_refresh_token){
+    // Only Ashley's session stores one — the calendar is a shared family
+    // feed read from her token regardless of who's viewing (see
+    // google-token-refresh), so David's session never needs its own.
+    if(currentRole==='ashley' && session.provider_refresh_token){
       try{
         await sb.from('google_tokens').upsert({
           user_id: currentUser.id,
@@ -1568,20 +1617,11 @@ async function handleSession(session){
     showLoadingOverlay();
     await init();
     hideLoadingOverlay();
-  }else if(roleForSession === 'david'){
-    currentUser = session.user;
-    currentRole = 'david';
-    authGateEl.style.display='none';
-    document.getElementById('davidRoot').style.display='block';
-    showLoadingOverlay();
-    await initDavidView();
-    hideLoadingOverlay();
   }else if(session && session.user){
     await sb.auth.signOut();
     currentUser = null;
     currentRole = null;
     appRootEl.style.display='none';
-    davidRootEl.style.display='none';
     authGateEl.style.display='flex';
     loadingCard.style.display='none'; signInCard.style.display='none';
     deniedCard.style.display='block';
@@ -1590,7 +1630,6 @@ async function handleSession(session){
     currentUser = null;
     currentRole = null;
     appRootEl.style.display='none';
-    davidRootEl.style.display='none';
     authGateEl.style.display='flex';
     loadingCard.style.display='none'; deniedCard.style.display='none';
     signInCard.style.display='block';
@@ -2195,10 +2234,12 @@ async function syncMonthAllDayEvents(year, monthIndex){
    due on one specific date, including whether each is done. Doesn't write
    anything back — separate from the "→ HubSpot" push buttons on Other Tasks,
    which go the other direction. */
-async function syncHubspotTasks(dateIso, btnEl){
+async function syncHubspotTasks(dateIso, btnEl, viewAsDavid){
   if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
-    const { data, error } = await sb.functions.invoke('hubspot-tasks', { body: { date: dateIso } });
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { date: dateIso, viewAs: viewAsDavid ? 'david' : undefined }
+    });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     if(!Array.isArray(data)) throw new Error('Unexpected response shape');
@@ -2220,11 +2261,11 @@ async function syncHubspotTasks(dateIso, btnEl){
    Note: only weekMonIso is actually needed now (the function derives the
    rest); weekSunIso is kept as a param for call-site clarity but unused. */
 let lastWeekTasksSyncError = null;
-async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl){
+async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl, viewAsDavid){
   if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'listWeek', weekStart: weekMonIso }
+      body: { action:'listWeek', weekStart: weekMonIso, viewAs: viewAsDavid ? 'david' : undefined }
     });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
@@ -2233,7 +2274,7 @@ async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl){
     const grouped = {mon:[],tue:[],wed:[],thu:[],fri:[],sat:[],sun:[]};
     data.forEach(t=>{
       if(t.dueDayKey && grouped.hasOwnProperty(t.dueDayKey)){
-        grouped[t.dueDayKey].push({ id:t.id, subject:t.subject, done:t.done, estimatedTime:t.estimatedTime });
+        grouped[t.dueDayKey].push({ id:t.id, subject:t.subject, done:t.done, estimatedTime:t.estimatedTime, body:t.body });
       }
     });
 
@@ -2468,6 +2509,14 @@ let monthViewDate = stripTime(TODAY);   // drives the Month tab (any date within
 let dayData, weekData, mealsData, quarterData, browsedQuarterData, dayMealsData, monthData;
 let weekDayTypes = []; // [{iso, dayType}] for the 7 days of weekViewDate — single source of truth is the day- record
 let currentDayKey, currentWeekKey, currentMealsKey, currentQuarterKey, dayMealsKey, currentMonthKey;
+
+// Ashley-only: lets her peek at David's tasks from her own Day/Week tabs
+// without switching accounts. Transient (never persisted), and reset every
+// time the selected day/week changes — see loadDay()/loadWeek().
+let viewingDavidDayTasks = false;
+let davidDayTasksCache = null;
+let viewingDavidWeek = false;
+let davidWeekTasksByDay = null;
 let lastMonthSyncError = null;
 
 /* In-memory cache of day- records, so we don't re-hit storage for dates we've
@@ -2682,129 +2731,20 @@ const saveBrowsedQuarterDebounced = debounce(()=>{
 const saveMonthDebounced = debounce(()=>sset(currentMonthKey, monthData), 500);
 
 /* ---------------- Init ---------------- */
-/* ---------------- David's minimal task view ----------------
-   Deliberately thin: no Supabase planner_data reads/writes, no calendar,
-   no body/health tracking. Just his own unassigned HubSpot tasks for a
-   given date, via the same hubspot-tasks edge function Ashley uses --
-   the function itself decides "unassigned" vs "owned by Ashley" based on
-   who's calling (see callerRole in the edge function). */
-let davidSelectedDate = null;
-
-async function initDavidView(){
-  davidSelectedDate = stripTime(TODAY);
-
-  document.getElementById('davidSignOutBtn').onclick = ()=>doSignOut();
-  document.getElementById('davidDayPrev').onclick = ()=>changeDavidDay(-1);
-  document.getElementById('davidDayNext').onclick = ()=>changeDavidDay(1);
-  document.getElementById('davidJumpToday').onclick = ()=>{ davidSelectedDate = stripTime(TODAY); loadDavidDay(); };
-  document.getElementById('davidAddTaskBtn').onclick = ()=>submitDavidTask();
-  document.getElementById('davidNewTaskInput').onkeydown = (e)=>{ if(e.key==='Enter') submitDavidTask(); };
-
-  await loadDavidDay();
-}
-
-function changeDavidDay(delta){
-  const d = new Date(davidSelectedDate);
-  d.setDate(d.getDate()+delta);
-  davidSelectedDate = stripTime(d);
-  loadDavidDay();
-}
-
-async function loadDavidDay(){
-  const label = document.getElementById('davidDayLabel');
-  label.textContent = davidSelectedDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
-
-  const listEl = document.getElementById('davidTaskList');
-  listEl.innerHTML = '<div class="empty-hint">Loading…</div>';
-
-  try{
-    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { date: isoDate(davidSelectedDate) }
-    });
-    if(error) throw error;
-    renderDavidTasks(Array.isArray(data) ? data : []);
-  }catch(e){
-    console.error('Failed to load tasks', e);
-    listEl.innerHTML = '<div class="empty-hint">Could not load tasks — check your connection and try again.</div>';
-  }
-}
-
-function renderDavidTasks(tasks){
-  const listEl = document.getElementById('davidTaskList');
-  listEl.innerHTML = '';
-  if(!tasks || tasks.length===0){
-    const hint=document.createElement('div'); hint.className='empty-hint';
-    hint.textContent = 'No tasks for this day.';
-    listEl.appendChild(hint);
-    return;
-  }
-  tasks.forEach(t=>{
-    const row=document.createElement('div'); row.className='task-row';
-    const chk=document.createElement('div'); chk.className='chk'+(t.done?' checked':''); chk.style.cursor='pointer';
-    const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);';
-    label.textContent = t.subject||'Untitled task';
-    if(t.done){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
-
-    const applyDoneStyle = (done)=>{
-      chk.className = 'chk'+(done?' checked':'');
-      label.style.color = done?'var(--muted)':'';
-      label.style.opacity = done?'0.75':'1';
-    };
-
-    chk.onclick = async ()=>{
-      const newDone = !t.done;
-      applyDoneStyle(newDone); // optimistic
-      chk.style.opacity = '0.6';
-      try{
-        const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-          body: { action:'update', taskId: t.id, done: newDone }
-        });
-        if(error || (data && data.error)) throw error || new Error(data.error);
-        t.done = newDone;
-      }catch(e){
-        applyDoneStyle(t.done); // revert
-        alert('Could not update this task. Check your connection and try again.');
-      }
-      chk.style.opacity = '1';
-    };
-
-    row.appendChild(chk); row.appendChild(label);
-    listEl.appendChild(row);
-  });
-}
-
-async function submitDavidTask(){
-  const input = document.getElementById('davidNewTaskInput');
-  const errEl = document.getElementById('davidTaskError');
-  const subject = input.value.trim();
-  if(!subject){ errEl.textContent = 'Task name is required.'; return; }
-  errEl.textContent = '';
-
-  const btn = document.getElementById('davidAddTaskBtn');
-  btn.disabled = true; btn.textContent = 'Adding…';
-
-  try{
-    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'create', subject, dueIso: isoDate(davidSelectedDate) }
-    });
-    if(error || !data || !data.success) throw error || new Error('Unexpected response');
-    input.value = '';
-    await loadDavidDay();
-  }catch(e){
-    errEl.textContent = 'Could not add task — check your connection and try again.';
-  }
-  btn.disabled = false; btn.textContent = 'Add';
-}
 
 async function init(){
   quarterData = (await sget(TODAY_QUARTER_KEY)) || loadQuarterData(TODAY_QNUM_YEAR.qNum, TODAY_QNUM_YEAR.year);
   renderPulse();
-  await rescanQuarterCounts(); // one full pass over today's real quarter — everything after this is incremental
+  if(currentRole !== 'david'){
+    await rescanQuarterCounts(); // one full pass over today's real quarter — everything after this is incremental
+  }
 
   await loadDay();
   await loadWeek();
   await loadMonthTab();
-  await loadQuarterTab();
+  if(currentRole !== 'david'){
+    await loadQuarterTab(); // Quarter tab is hidden entirely for David — no need to load it
+  }
 
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -2864,6 +2804,10 @@ async function init(){
   document.getElementById('pushModalCancelBtn').onclick=()=>closePushModal();
   document.getElementById('pushModalSubmitBtn').onclick=()=>submitPushModal();
   document.getElementById('moveModalCancelBtn').onclick=()=>closeMoveModal();
+  document.getElementById('taskDetailCloseBtn').onclick=()=>closeTaskDetailModal();
+  document.getElementById('monthEventCloseBtn').onclick=()=>closeMonthEventModal();
+  document.getElementById('viewDavidDayBtn').onclick=()=>toggleViewDavidDay();
+  document.getElementById('viewDavidWeekBtn').onclick=()=>toggleViewDavidWeek();
 
   document.getElementById('searchBtn').onclick=()=>{ closeDrawer(); openSearchModal(); };
   document.getElementById('searchModalCancelBtn').onclick=()=>closeSearchModal();
@@ -2911,6 +2855,12 @@ async function loadDay(){
   dayData = rec || seedDay(iso);
   document.getElementById('dayPicker').value = iso;
 
+  // Navigating to a different day always drops back to "my own tasks" —
+  // otherwise it'd be easy to lose track of whose list you're looking at.
+  viewingDavidDayTasks = false;
+  davidDayTasksCache = null;
+  updateViewDavidDayButton();
+
   const weekMonIso = isoDate(mondayOfWeek(selectedDate));
   dayMealsKey = 'meals-' + weekMonIso;
   if(dayMealsKey === currentMealsKey && mealsData){
@@ -2924,8 +2874,13 @@ async function loadDay(){
   // Auto-refresh the calendar timeline and HubSpot tasks in the background —
   // no tap needed. Fires after renderDay() so the rest of the page is already
   // usable while these load; each just repaints its own section once it resolves.
-  if(!isWeekendDate(selectedDate)){
-    autoSyncCalendar(iso);
+  // David always uses the weekday template (see renderDay), so the guard here
+  // has to match that, not the raw day-of-week.
+  const usingWeekdayTemplate = (currentRole === 'david') || !isWeekendDate(selectedDate);
+  if(usingWeekdayTemplate){
+    if(currentRole !== 'david'){
+      autoSyncCalendar(iso); // "Today's Shape" is Ashley-only — no need to fetch it for David
+    }
     autoSyncHubspot(iso);
   }
 }
@@ -2957,6 +2912,12 @@ async function loadWeek(){
   if(!weekData.hubspotTasksByDay) weekData.hubspotTasksByDay = {};
   if(!weekData.body) weekData.body = {weight:'',water:'',fat:'',muscle:'',protein:''};
   if(!('fat' in weekData.body)) weekData.body.fat = '';
+
+  // Same idea as the Day tab — a week change always drops back to "my own
+  // tasks" so you can't accidentally keep editing David's list unaware.
+  viewingDavidWeek = false;
+  davidWeekTasksByDay = null;
+  updateViewDavidWeekButton();
 
   if(currentMealsKey === dayMealsKey && dayMealsData){
     mealsData = dayMealsData; // same week the Day tab is showing — share it live
@@ -3057,8 +3018,9 @@ async function setDayType(iso, newType){
 /* ---------------- Pulse (always = real today, not the browsed date) ---------------- */
 function renderPulse(){
   const hour = TODAY.getHours();
+  const name = currentRole === 'david' ? 'David' : 'Ashley';
   document.getElementById('greeting').textContent =
-    (hour<12?'Good morning, Ashley': hour<18?'Good afternoon, Ashley':'Good evening, Ashley');
+    (hour<12?'Good morning, '+name: hour<18?'Good afternoon, '+name:'Good evening, '+name);
   document.getElementById('todayDate').textContent = fmtLong(TODAY);
   document.getElementById('weekBadge').textContent = 'Week ' + weekLabel(TODAY);
 
@@ -3141,7 +3103,10 @@ function updateBrowsedQuarterActualsUI(){
 function renderDay(){
   document.getElementById('navDayLabel').textContent = fmtLong(selectedDate);
 
-  const weekend = isWeekendDate(selectedDate);
+  // David's Day view has no weekend/weekday split (per scope) — always use
+  // the (trimmed via CSS) weekday template for him, regardless of the
+  // actual day of the week.
+  const weekend = (currentRole !== 'david') && isWeekendDate(selectedDate);
   document.getElementById('weekdayCard').style.display = weekend ? 'none' : 'block';
   document.getElementById('weekendCard').style.display = weekend ? 'block' : 'none';
 
@@ -3239,9 +3204,11 @@ function taskIsDone(t){
 
 /* Writes a task's completion status back to HubSpot via the Edge Function.
    Returns true on success, false on failure (caller handles UI rollback). */
-async function updateHubspotTaskStatus(taskId, done){
+async function updateHubspotTaskStatus(taskId, done, viewAsDavid){
   try{
-    const { data, error } = await sb.functions.invoke('hubspot-tasks', { body: { action:'update', taskId, done } });
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'update', taskId, done, viewAs: viewAsDavid ? 'david' : undefined }
+    });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     return true;
@@ -3251,9 +3218,11 @@ async function updateHubspotTaskStatus(taskId, done){
   }
 }
 
-async function rescheduleHubspotTask(taskId, dueIso){
+async function rescheduleHubspotTask(taskId, dueIso, viewAsDavid){
   try{
-    const { data, error } = await sb.functions.invoke('hubspot-tasks', { body: { action:'reschedule', taskId, dueIso } });
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'reschedule', taskId, dueIso, viewAs: viewAsDavid ? 'david' : undefined }
+    });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
     return true;
@@ -3261,6 +3230,64 @@ async function rescheduleHubspotTask(taskId, dueIso){
     console.error('HubSpot task reschedule failed', e);
     return false;
   }
+}
+
+/* Shared by the Move Task modal (Week) and the Task Detail modal (Day) —
+   shows estimated time + notes for a task. HubSpot's notes field can contain
+   simple HTML; stripping it via a detached element's textContent is safe
+   (scripts never execute on elements that are never attached to the page)
+   and avoids showing raw tags. */
+function stripHtml(html){
+  if(!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+function renderTaskMetaInto(container, task){
+  container.innerHTML = '';
+
+  const estRow = document.createElement('div'); estRow.className='task-detail-row';
+  const estLabel = document.createElement('span'); estLabel.className='label'; estLabel.textContent='Est. Time';
+  const estVal = document.createElement('span'); estVal.textContent = task.estimatedTime ? (task.estimatedTime+'h') : '—';
+  estRow.appendChild(estLabel); estRow.appendChild(estVal);
+  container.appendChild(estRow);
+
+  const notesLabelRow = document.createElement('div'); notesLabelRow.className='task-detail-row';
+  const notesLabel = document.createElement('span'); notesLabel.className='label'; notesLabel.textContent='Notes';
+  notesLabelRow.appendChild(notesLabel);
+  container.appendChild(notesLabelRow);
+
+  const notesBox = document.createElement('div'); notesBox.className='task-detail-notes';
+  notesBox.textContent = stripHtml(task.body) || 'No notes.';
+  container.appendChild(notesBox);
+}
+
+/* ---------------- Task Detail modal (Day tab, Planned Tasks) ----------------
+   Read-only — tapping a task's name shows its full detail without leaving
+   the Day tab. Works the same whether looking at your own list or David's
+   (via the View David's Tasks toggle), since both render through the same
+   renderHubspotTasksList(). */
+function openTaskDetailModal(task){
+  document.getElementById('taskDetailName').textContent = task.subject || 'Untitled task';
+  renderTaskMetaInto(document.getElementById('taskDetailMeta'), task);
+  document.getElementById('taskDetailModalOverlay').classList.add('show');
+}
+function closeTaskDetailModal(){
+  document.getElementById('taskDetailModalOverlay').classList.remove('show');
+}
+
+/* ---------------- Month event detail modal (Month tab, Calendar) ----------------
+   All-day events only (per the Month tab's existing scope), so "date/time"
+   here is just the date — there's no time-of-day component to show. */
+function openMonthEventModal(title, bgColor, colorId, dayDate){
+  const pill = document.getElementById('monthEventPill');
+  pill.style.background = bgColor;
+  pill.textContent = (colorId==='birthday' ? '🎂 ' : '') + title;
+  document.getElementById('monthEventDate').textContent = fmtLong(dayDate);
+  document.getElementById('monthEventModalOverlay').classList.add('show');
+}
+function closeMonthEventModal(){
+  document.getElementById('monthEventModalOverlay').classList.remove('show');
 }
 
 /* ---------------- Move Task modal (Task Planner, Week tab) ----------------
@@ -3271,6 +3298,7 @@ let moveModalCtx = null; // {task, fromDayKey}
 function openMoveModal(task, fromDayKey){
   moveModalCtx = { task, fromDayKey };
   document.getElementById('moveModalTaskName').textContent = task.subject || 'Untitled task';
+  renderTaskMetaInto(document.getElementById('moveModalTaskMeta'), task);
   document.getElementById('moveModalError').textContent = '';
 
   const dayLabels = [['mon','MON'],['tue','TUE'],['wed','WED'],['thu','THU'],['fri','FRI'],['sat','SAT'],['sun','SUN']];
@@ -3303,18 +3331,17 @@ async function submitMoveModal(toDayKey, toDueIso){
   }
 
   errEl.textContent = 'Moving…';
-  const ok = await rescheduleHubspotTask(task.id, toDueIso);
+  const ok = await rescheduleHubspotTask(task.id, toDueIso, viewingDavidWeek);
 
   if(ok){
-    const byDay = weekData.hubspotTasksByDay || {};
+    const byDay = (viewingDavidWeek ? davidWeekTasksByDay : weekData.hubspotTasksByDay) || {};
     if(byDay[fromDayKey]){
       const idx = byDay[fromDayKey].findIndex(t=>t.id===task.id);
       if(idx>-1) byDay[fromDayKey].splice(idx,1);
     }
     if(!byDay[toDayKey]) byDay[toDayKey]=[];
     byDay[toDayKey].push(task);
-    weekData.hubspotTasksByDay = byDay;
-    saveWeekDebounced();
+    if(viewingDavidWeek){ davidWeekTasksByDay = byDay; } else { weekData.hubspotTasksByDay = byDay; saveWeekDebounced(); }
     renderWeekTasksTable();
     closeMoveModal();
   }else{
@@ -3325,10 +3352,10 @@ async function submitMoveModal(toDayKey, toDueIso){
 function renderHubspotTasksList(){
   const container = document.getElementById('hubspotTasksList');
   container.innerHTML='';
-  const tasks = dayData.hubspotTasks;
+  const tasks = viewingDavidDayTasks ? davidDayTasksCache : dayData.hubspotTasks;
   if(!tasks || tasks.length===0){
     const hint=document.createElement('div'); hint.className='empty-hint';
-    hint.textContent = tasks===null ? 'Loading…' : 'No HubSpot tasks due today.';
+    hint.textContent = tasks===null ? 'Loading…' : (viewingDavidDayTasks ? "David has no tasks due today." : 'No HubSpot tasks due today.');
     container.appendChild(hint);
     return;
   }
@@ -3336,8 +3363,9 @@ function renderHubspotTasksList(){
     const isDone = taskIsDone(t);
     const row=document.createElement('div'); row.className='task-row';
     const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':''); chk.style.cursor='pointer';
-    const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);';
+    const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);cursor:pointer;';
     label.textContent = t.subject||'Untitled task';
+    label.onclick = ()=>openTaskDetailModal(t);
     if(isDone){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
 
     const applyDoneStyle = (done)=>{
@@ -3354,11 +3382,11 @@ function renderHubspotTasksList(){
       const newDone = !taskIsDone(t);
       applyDoneStyle(newDone); // optimistic — updates instantly, no waiting on HubSpot's round trip
       chk.style.opacity = '0.6';
-      const ok = await updateHubspotTaskStatus(t.id, newDone);
+      const ok = await updateHubspotTaskStatus(t.id, newDone, viewingDavidDayTasks);
       chk.style.opacity = '1';
       if(ok){
         t.done = newDone;
-        saveDayDebounced();
+        if(!viewingDavidDayTasks) saveDayDebounced(); // David's tasks live in HubSpot only, nothing of Ashley's to save
       }else{
         applyDoneStyle(taskIsDone(t)); // revert to the pre-click state
         alert('Could not update this task in HubSpot. Check your connection and try again.');
@@ -3368,6 +3396,27 @@ function renderHubspotTasksList(){
     row.appendChild(chk); row.appendChild(label);
     container.appendChild(row);
   });
+}
+
+/* Toggles the Day tab's Planned Tasks list between "my tasks" and David's —
+   Ashley-only (the button itself is hidden for David via CSS, and the edge
+   function rejects viewAs from anyone but her regardless). */
+function updateViewDavidDayButton(){
+  const btn = document.getElementById('viewDavidDayBtn');
+  if(!btn) return;
+  btn.textContent = viewingDavidDayTasks ? '← Back to My Tasks' : "View David's Tasks";
+  btn.classList.toggle('active', viewingDavidDayTasks);
+  const label = document.getElementById('plannedTasksLabel');
+  if(label) label.textContent = viewingDavidDayTasks ? "David's Planned Tasks" : 'Planned Tasks';
+}
+async function toggleViewDavidDay(){
+  viewingDavidDayTasks = !viewingDavidDayTasks;
+  updateViewDavidDayButton();
+  if(viewingDavidDayTasks && davidDayTasksCache===null){
+    const iso = isoDate(selectedDate);
+    davidDayTasksCache = await syncHubspotTasks(iso, null, true) || [];
+  }
+  renderHubspotTasksList();
 }
 
 function renderWeekdayDay(){
@@ -3749,11 +3798,11 @@ function renderWeekTasksTable(){
   if(hintEl){
     hintEl.textContent = lastWeekTasksSyncError
       ? 'Couldn\'t load tasks: ' + lastWeekTasksSyncError
-      : 'Planned tasks from HubSpot for this week.';
+      : (viewingDavidWeek ? "David's planned tasks for this week." : 'Planned tasks from HubSpot for this week.');
     hintEl.style.color = lastWeekTasksSyncError ? 'var(--personal)' : 'var(--muted)';
   }
 
-  const byDay = weekData.hubspotTasksByDay || {};
+  const byDay = (viewingDavidWeek ? davidWeekTasksByDay : weekData.hubspotTasksByDay) || {};
 
   const taskRow = document.createElement('tr');
   const taskLabelTd = document.createElement('td'); taskLabelTd.className='rowlabel'; taskLabelTd.textContent='Tasks';
@@ -3779,8 +3828,8 @@ function renderWeekTasksTable(){
         if(!t.id){ alert('Can\'t update — tap Sync to refresh, then try again.'); return; }
         const newDone = !taskIsDone(t);
         chk.className='chk'+(newDone?' checked':''); item.classList.toggle('wk-done', newDone);
-        const ok = await updateHubspotTaskStatus(t.id, newDone);
-        if(ok){ t.done=newDone; saveWeekDebounced(); }
+        const ok = await updateHubspotTaskStatus(t.id, newDone, viewingDavidWeek);
+        if(ok){ t.done=newDone; if(!viewingDavidWeek) saveWeekDebounced(); }
         else{
           chk.className='chk'+(isDone?' checked':''); item.classList.toggle('wk-done', isDone);
           alert('Could not update this task in HubSpot.');
@@ -3805,6 +3854,25 @@ function renderWeekTasksTable(){
     totalsRow.appendChild(td);
   });
   body.appendChild(totalsRow);
+}
+
+/* Toggles the Week tab's Task Planner between "my week" and David's — same
+   Ashley-only pattern as the Day tab's equivalent. */
+function updateViewDavidWeekButton(){
+  const btn = document.getElementById('viewDavidWeekBtn');
+  if(!btn) return;
+  btn.textContent = viewingDavidWeek ? '← Back to My Week' : "View David's Week";
+  btn.classList.toggle('active', viewingDavidWeek);
+}
+async function toggleViewDavidWeek(){
+  viewingDavidWeek = !viewingDavidWeek;
+  updateViewDavidWeekButton();
+  if(viewingDavidWeek && davidWeekTasksByDay===null){
+    const monIso = isoDate(weekViewDate);
+    const sunIso = isoDate(new Date(weekViewDate.getTime()+6*86400000));
+    davidWeekTasksByDay = await syncWeekHubspotTasks(monIso, sunIso, null, true) || {};
+  }
+  renderWeekTasksTable();
 }
 
 function renderMeals(){
@@ -3904,8 +3972,11 @@ function renderMonthTab(){
           // data that was saved before colors were tracked (plain strings).
           const title = (typeof ev === 'string') ? ev : ev.title;
           const colorId = (typeof ev === 'string') ? null : ev.colorId;
-          evEl.style.background = categoryColorFor(colorId);
+          const bg = categoryColorFor(colorId);
+          evEl.style.background = bg;
+          evEl.style.cursor = 'pointer';
           evEl.textContent = (colorId==='birthday' ? '🎂 ' : '') + title;
+          evEl.onclick = ()=>openMonthEventModal(title, bg, colorId, day);
           td.appendChild(evEl);
         });
       }
