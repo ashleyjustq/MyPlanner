@@ -139,6 +139,7 @@
     cursor:pointer;
   }
   .view-as-david-btn.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+  .view-as-row{margin:10px 0;}
 
   /* ---- Card / section ---- */
   .card{
@@ -468,6 +469,8 @@
     display:none;align-items:center;justify-content:center;padding:20px;
   }
   .push-modal-overlay.show{display:flex;}
+  #moveModalOverlay, #taskDetailModalOverlay{z-index:7010;}
+  .peek-modal-card{max-height:80vh;overflow-y:auto;}
   .push-modal-card{
     background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;
     box-shadow:0 20px 60px rgba(0,0,0,.3);
@@ -902,6 +905,30 @@
   </div>
 </div>
 
+<!-- PEEK DAY TASKS MODAL (Ashley viewing David's Day) -->
+<div class="push-modal-overlay" id="peekDayModalOverlay">
+  <div class="push-modal-card peek-modal-card">
+    <div class="push-modal-title" id="peekDayModalTitle">Tasks</div>
+    <div id="peekDayTasksList"></div>
+
+    <div class="push-modal-actions">
+      <button class="push-modal-cancel" id="peekDayCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- PEEK WEEK MODAL (either direction) -->
+<div class="push-modal-overlay" id="peekWeekModalOverlay">
+  <div class="push-modal-card peek-modal-card">
+    <div class="push-modal-title" id="peekWeekModalTitle">Week</div>
+    <div id="peekWeekTasksList"></div>
+
+    <div class="push-modal-actions">
+      <button class="push-modal-cancel" id="peekWeekCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- MONTH EVENT DETAIL MODAL -->
 <div class="push-modal-overlay" id="monthEventModalOverlay">
   <div class="push-modal-card">
@@ -1057,15 +1084,16 @@
           </div>
           <div id="hubspotTasksList"></div>
 
-          <div class="section-bar" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>New Tasks</span>
-            <button class="view-as-david-btn role-ashley-only" id="viewDavidDayBtn">View David's Tasks</button>
-          </div>
+          <div class="section-bar">New Tasks</div>
           <div id="otherTasksList"></div>
           <div class="add-row">
             <button class="add-btn" id="addTaskBtn">+ add task</button>
           </div>
         </div>
+      </div>
+
+      <div class="view-as-row role-ashley-only">
+        <button class="view-as-david-btn" id="viewDavidDayBtn">View David's Tasks</button>
       </div>
 
       <div class="section-bar">Habits</div>
@@ -1267,10 +1295,13 @@
     <div class="card">
       <div class="card-title-row">
         <div class="card-title" style="font-size:19px;">Task Planner</div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button class="view-as-david-btn role-ashley-only" id="viewDavidWeekBtn">View David's Week</button>
-          <button class="sync-btn" id="syncWeekTasksBtn">↻ Sync</button>
-        </div>
+        <button class="sync-btn" id="syncWeekTasksBtn">↻ Sync</button>
+      </div>
+      <div class="view-as-row role-ashley-only">
+        <button class="view-as-david-btn" id="viewDavidWeekBtn">View David's Week</button>
+      </div>
+      <div class="view-as-row role-david-only">
+        <button class="view-as-david-btn" id="viewAshleyWeekBtn">View Ashley's Week</button>
       </div>
       <div class="rest-hint" id="weekTasksHint" style="margin-bottom:6px;">Planned tasks from HubSpot for this week.</div>
       <div class="meal-grid-wrap">
@@ -2234,11 +2265,11 @@ async function syncMonthAllDayEvents(year, monthIndex){
    due on one specific date, including whether each is done. Doesn't write
    anything back — separate from the "→ HubSpot" push buttons on Other Tasks,
    which go the other direction. */
-async function syncHubspotTasks(dateIso, btnEl, viewAsDavid){
+async function syncHubspotTasks(dateIso, btnEl, viewAsRole){
   if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { date: dateIso, viewAs: viewAsDavid ? 'david' : undefined }
+      body: { date: dateIso, viewAs: viewAsRole || undefined }
     });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
@@ -2261,11 +2292,11 @@ async function syncHubspotTasks(dateIso, btnEl, viewAsDavid){
    Note: only weekMonIso is actually needed now (the function derives the
    rest); weekSunIso is kept as a param for call-site clarity but unused. */
 let lastWeekTasksSyncError = null;
-async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl, viewAsDavid){
+async function syncWeekHubspotTasks(weekMonIso, weekSunIso, btnEl, viewAsRole){
   if(btnEl){ btnEl.disabled = true; btnEl.textContent = 'Syncing…'; }
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'listWeek', weekStart: weekMonIso, viewAs: viewAsDavid ? 'david' : undefined }
+      body: { action:'listWeek', weekStart: weekMonIso, viewAs: viewAsRole || undefined }
     });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
@@ -2510,13 +2541,6 @@ let dayData, weekData, mealsData, quarterData, browsedQuarterData, dayMealsData,
 let weekDayTypes = []; // [{iso, dayType}] for the 7 days of weekViewDate — single source of truth is the day- record
 let currentDayKey, currentWeekKey, currentMealsKey, currentQuarterKey, dayMealsKey, currentMonthKey;
 
-// Ashley-only: lets her peek at David's tasks from her own Day/Week tabs
-// without switching accounts. Transient (never persisted), and reset every
-// time the selected day/week changes — see loadDay()/loadWeek().
-let viewingDavidDayTasks = false;
-let davidDayTasksCache = null;
-let viewingDavidWeek = false;
-let davidWeekTasksByDay = null;
 let lastMonthSyncError = null;
 
 /* In-memory cache of day- records, so we don't re-hit storage for dates we've
@@ -2806,8 +2830,11 @@ async function init(){
   document.getElementById('moveModalCancelBtn').onclick=()=>closeMoveModal();
   document.getElementById('taskDetailCloseBtn').onclick=()=>closeTaskDetailModal();
   document.getElementById('monthEventCloseBtn').onclick=()=>closeMonthEventModal();
-  document.getElementById('viewDavidDayBtn').onclick=()=>toggleViewDavidDay();
-  document.getElementById('viewDavidWeekBtn').onclick=()=>toggleViewDavidWeek();
+  document.getElementById('viewDavidDayBtn').onclick=()=>openPeekDayModal();
+  document.getElementById('peekDayCloseBtn').onclick=()=>closePeekDayModal();
+  document.getElementById('viewDavidWeekBtn').onclick=()=>openPeekWeekModal('david');
+  document.getElementById('viewAshleyWeekBtn').onclick=()=>openPeekWeekModal('ashley');
+  document.getElementById('peekWeekCloseBtn').onclick=()=>closePeekWeekModal();
 
   document.getElementById('searchBtn').onclick=()=>{ closeDrawer(); openSearchModal(); };
   document.getElementById('searchModalCancelBtn').onclick=()=>closeSearchModal();
@@ -2855,11 +2882,10 @@ async function loadDay(){
   dayData = rec || seedDay(iso);
   document.getElementById('dayPicker').value = iso;
 
-  // Navigating to a different day always drops back to "my own tasks" —
-  // otherwise it'd be easy to lose track of whose list you're looking at.
-  viewingDavidDayTasks = false;
-  davidDayTasksCache = null;
-  updateViewDavidDayButton();
+  // Navigating to a different day closes the peek-at-David modal if it's
+  // open — otherwise it'd keep showing tasks for a date you've left.
+  closePeekDayModal();
+  peekDayTasksCache = null;
 
   const weekMonIso = isoDate(mondayOfWeek(selectedDate));
   dayMealsKey = 'meals-' + weekMonIso;
@@ -2913,11 +2939,11 @@ async function loadWeek(){
   if(!weekData.body) weekData.body = {weight:'',water:'',fat:'',muscle:'',protein:''};
   if(!('fat' in weekData.body)) weekData.body.fat = '';
 
-  // Same idea as the Day tab — a week change always drops back to "my own
-  // tasks" so you can't accidentally keep editing David's list unaware.
-  viewingDavidWeek = false;
-  davidWeekTasksByDay = null;
-  updateViewDavidWeekButton();
+  // Same idea as the Day tab — a week change closes the peek-at-the-other-
+  // week modal if it's open, so it doesn't keep showing a stale week.
+  closePeekWeekModal();
+  peekWeekCache = null;
+  peekWeekTargetRole = null;
 
   if(currentMealsKey === dayMealsKey && dayMealsData){
     mealsData = dayMealsData; // same week the Day tab is showing — share it live
@@ -3204,10 +3230,10 @@ function taskIsDone(t){
 
 /* Writes a task's completion status back to HubSpot via the Edge Function.
    Returns true on success, false on failure (caller handles UI rollback). */
-async function updateHubspotTaskStatus(taskId, done, viewAsDavid){
+async function updateHubspotTaskStatus(taskId, done, viewAsRole){
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'update', taskId, done, viewAs: viewAsDavid ? 'david' : undefined }
+      body: { action:'update', taskId, done, viewAs: viewAsRole || undefined }
     });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
@@ -3218,10 +3244,10 @@ async function updateHubspotTaskStatus(taskId, done, viewAsDavid){
   }
 }
 
-async function rescheduleHubspotTask(taskId, dueIso, viewAsDavid){
+async function rescheduleHubspotTask(taskId, dueIso, viewAsRole){
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'reschedule', taskId, dueIso, viewAs: viewAsDavid ? 'david' : undefined }
+      body: { action:'reschedule', taskId, dueIso, viewAs: viewAsRole || undefined }
     });
     if(error) throw error;
     if(data && data.error) throw new Error(data.error);
@@ -3295,8 +3321,8 @@ function closeMonthEventModal(){
    where native HTML5 drag-and-drop is genuinely unreliable on touch. */
 let moveModalCtx = null; // {task, fromDayKey}
 
-function openMoveModal(task, fromDayKey){
-  moveModalCtx = { task, fromDayKey };
+function openMoveModal(task, fromDayKey, viewAsRole){
+  moveModalCtx = { task, fromDayKey, viewAsRole: viewAsRole || null };
   document.getElementById('moveModalTaskName').textContent = task.subject || 'Untitled task';
   renderTaskMetaInto(document.getElementById('moveModalTaskMeta'), task);
   document.getElementById('moveModalError').textContent = '';
@@ -3322,7 +3348,7 @@ function closeMoveModal(){
 }
 async function submitMoveModal(toDayKey, toDueIso){
   if(!moveModalCtx) return;
-  const { task, fromDayKey } = moveModalCtx;
+  const { task, fromDayKey, viewAsRole } = moveModalCtx;
   const errEl = document.getElementById('moveModalError');
 
   if(!task.id){
@@ -3331,18 +3357,18 @@ async function submitMoveModal(toDayKey, toDueIso){
   }
 
   errEl.textContent = 'Moving…';
-  const ok = await rescheduleHubspotTask(task.id, toDueIso, viewingDavidWeek);
+  const ok = await rescheduleHubspotTask(task.id, toDueIso, viewAsRole);
 
   if(ok){
-    const byDay = (viewingDavidWeek ? davidWeekTasksByDay : weekData.hubspotTasksByDay) || {};
+    const byDay = (viewAsRole ? peekWeekCache : weekData.hubspotTasksByDay) || {};
     if(byDay[fromDayKey]){
       const idx = byDay[fromDayKey].findIndex(t=>t.id===task.id);
       if(idx>-1) byDay[fromDayKey].splice(idx,1);
     }
     if(!byDay[toDayKey]) byDay[toDayKey]=[];
     byDay[toDayKey].push(task);
-    if(viewingDavidWeek){ davidWeekTasksByDay = byDay; } else { weekData.hubspotTasksByDay = byDay; saveWeekDebounced(); }
-    renderWeekTasksTable();
+    if(viewAsRole){ peekWeekCache = byDay; renderPeekWeekList(); }
+    else{ weekData.hubspotTasksByDay = byDay; saveWeekDebounced(); renderWeekTasksTable(); }
     closeMoveModal();
   }else{
     errEl.textContent = 'Could not move this task in HubSpot. Try again.';
@@ -3352,10 +3378,10 @@ async function submitMoveModal(toDayKey, toDueIso){
 function renderHubspotTasksList(){
   const container = document.getElementById('hubspotTasksList');
   container.innerHTML='';
-  const tasks = viewingDavidDayTasks ? davidDayTasksCache : dayData.hubspotTasks;
+  const tasks = dayData.hubspotTasks;
   if(!tasks || tasks.length===0){
     const hint=document.createElement('div'); hint.className='empty-hint';
-    hint.textContent = tasks===null ? 'Loading…' : (viewingDavidDayTasks ? "David has no tasks due today." : 'No HubSpot tasks due today.');
+    hint.textContent = tasks===null ? 'Loading…' : 'No HubSpot tasks due today.';
     container.appendChild(hint);
     return;
   }
@@ -3382,11 +3408,11 @@ function renderHubspotTasksList(){
       const newDone = !taskIsDone(t);
       applyDoneStyle(newDone); // optimistic — updates instantly, no waiting on HubSpot's round trip
       chk.style.opacity = '0.6';
-      const ok = await updateHubspotTaskStatus(t.id, newDone, viewingDavidDayTasks);
+      const ok = await updateHubspotTaskStatus(t.id, newDone);
       chk.style.opacity = '1';
       if(ok){
         t.done = newDone;
-        if(!viewingDavidDayTasks) saveDayDebounced(); // David's tasks live in HubSpot only, nothing of Ashley's to save
+        saveDayDebounced();
       }else{
         applyDoneStyle(taskIsDone(t)); // revert to the pre-click state
         alert('Could not update this task in HubSpot. Check your connection and try again.');
@@ -3398,25 +3424,63 @@ function renderHubspotTasksList(){
   });
 }
 
-/* Toggles the Day tab's Planned Tasks list between "my tasks" and David's —
-   Ashley-only (the button itself is hidden for David via CSS, and the edge
-   function rejects viewAs from anyone but her regardless). */
-function updateViewDavidDayButton(){
-  const btn = document.getElementById('viewDavidDayBtn');
-  if(!btn) return;
-  btn.textContent = viewingDavidDayTasks ? '← Back to My Tasks' : "View David's Tasks";
-  btn.classList.toggle('active', viewingDavidDayTasks);
-  const label = document.getElementById('plannedTasksLabel');
-  if(label) label.textContent = viewingDavidDayTasks ? "David's Planned Tasks" : 'Planned Tasks';
+/* ---------------- Peek-at-the-other-person's-day modal (Day tab) ----------------
+   Ashley-only for now — opens David's Planned Tasks for the currently
+   selected date in a modal, without touching her own Planned Tasks list.
+   Fully interactive (checkbox works), tapping a task opens the same Task
+   Detail modal used everywhere else. */
+let peekDayTasksCache = null;
+async function openPeekDayModal(){
+  document.getElementById('peekDayModalTitle').textContent = "David's Tasks — " + dayTitleFor(selectedDate);
+  document.getElementById('peekDayModalOverlay').classList.add('show');
+  peekDayTasksCache = null;
+  renderPeekDayList(); // shows "Loading…" immediately
+  const iso = isoDate(selectedDate);
+  peekDayTasksCache = await syncHubspotTasks(iso, null, 'david') || [];
+  renderPeekDayList();
 }
-async function toggleViewDavidDay(){
-  viewingDavidDayTasks = !viewingDavidDayTasks;
-  updateViewDavidDayButton();
-  if(viewingDavidDayTasks && davidDayTasksCache===null){
-    const iso = isoDate(selectedDate);
-    davidDayTasksCache = await syncHubspotTasks(iso, null, true) || [];
+function closePeekDayModal(){
+  document.getElementById('peekDayModalOverlay').classList.remove('show');
+}
+function renderPeekDayList(){
+  const container = document.getElementById('peekDayTasksList');
+  container.innerHTML = '';
+  const tasks = peekDayTasksCache;
+  if(!tasks || tasks.length===0){
+    const hint=document.createElement('div'); hint.className='empty-hint';
+    hint.textContent = tasks===null ? 'Loading…' : 'No tasks due today.';
+    container.appendChild(hint);
+    return;
   }
-  renderHubspotTasksList();
+  tasks.forEach(t=>{
+    const isDone = taskIsDone(t);
+    const row=document.createElement('div'); row.className='task-row';
+    const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':''); chk.style.cursor='pointer';
+    const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);cursor:pointer;';
+    label.textContent = t.subject||'Untitled task';
+    label.onclick = ()=>openTaskDetailModal(t);
+    if(isDone){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
+
+    const applyDoneStyle = (done)=>{
+      chk.className = 'chk'+(done?' checked':'');
+      label.style.color = done?'var(--muted)':'';
+      label.style.opacity = done?'0.75':'1';
+    };
+
+    chk.onclick = async ()=>{
+      if(!t.id){ alert('Can\'t update — tap Sync to refresh, then try again.'); return; }
+      const newDone = !taskIsDone(t);
+      applyDoneStyle(newDone);
+      chk.style.opacity = '0.6';
+      const ok = await updateHubspotTaskStatus(t.id, newDone, 'david');
+      chk.style.opacity = '1';
+      if(ok){ t.done = newDone; }
+      else{ applyDoneStyle(taskIsDone(t)); alert('Could not update this task in HubSpot.'); }
+    };
+
+    row.appendChild(chk); row.appendChild(label);
+    container.appendChild(row);
+  });
 }
 
 function renderWeekdayDay(){
@@ -3798,11 +3862,11 @@ function renderWeekTasksTable(){
   if(hintEl){
     hintEl.textContent = lastWeekTasksSyncError
       ? 'Couldn\'t load tasks: ' + lastWeekTasksSyncError
-      : (viewingDavidWeek ? "David's planned tasks for this week." : 'Planned tasks from HubSpot for this week.');
+      : 'Planned tasks from HubSpot for this week.';
     hintEl.style.color = lastWeekTasksSyncError ? 'var(--personal)' : 'var(--muted)';
   }
 
-  const byDay = (viewingDavidWeek ? davidWeekTasksByDay : weekData.hubspotTasksByDay) || {};
+  const byDay = weekData.hubspotTasksByDay || {};
 
   const taskRow = document.createElement('tr');
   const taskLabelTd = document.createElement('td'); taskLabelTd.className='rowlabel'; taskLabelTd.textContent='Tasks';
@@ -3828,8 +3892,8 @@ function renderWeekTasksTable(){
         if(!t.id){ alert('Can\'t update — tap Sync to refresh, then try again.'); return; }
         const newDone = !taskIsDone(t);
         chk.className='chk'+(newDone?' checked':''); item.classList.toggle('wk-done', newDone);
-        const ok = await updateHubspotTaskStatus(t.id, newDone, viewingDavidWeek);
-        if(ok){ t.done=newDone; if(!viewingDavidWeek) saveWeekDebounced(); }
+        const ok = await updateHubspotTaskStatus(t.id, newDone);
+        if(ok){ t.done=newDone; saveWeekDebounced(); }
         else{
           chk.className='chk'+(isDone?' checked':''); item.classList.toggle('wk-done', isDone);
           alert('Could not update this task in HubSpot.');
@@ -3856,23 +3920,88 @@ function renderWeekTasksTable(){
   body.appendChild(totalsRow);
 }
 
-/* Toggles the Week tab's Task Planner between "my week" and David's — same
-   Ashley-only pattern as the Day tab's equivalent. */
-function updateViewDavidWeekButton(){
-  const btn = document.getElementById('viewDavidWeekBtn');
-  if(!btn) return;
-  btn.textContent = viewingDavidWeek ? '← Back to My Week' : "View David's Week";
-  btn.classList.toggle('active', viewingDavidWeek);
+/* ---------------- Peek-at-the-other-person's-week modal (Week tab) ----------------
+   Bidirectional: Ashley gets "View David's Week", David gets "View Ashley's
+   Week" (see the role-ashley-only / role-david-only buttons in the Task
+   Planner card). A day-by-day list rather than the 7-column table, since the
+   modal is too narrow for that layout. Tapping a task opens the same Move
+   Task modal used on the main Task Planner, just tagged with which role's
+   list it's actually operating on. */
+let peekWeekCache = null;
+let peekWeekTargetRole = null; // 'david' | 'ashley'
+const PEEK_WEEK_DAY_LABELS = [['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat'],['sun','Sun']];
+
+async function openPeekWeekModal(targetRole){
+  peekWeekTargetRole = targetRole;
+  const name = targetRole==='david' ? 'David' : 'Ashley';
+  const sunDate = new Date(weekViewDate.getTime()+6*86400000);
+  document.getElementById('peekWeekModalTitle').textContent = name+"'s Week — "+fmtShort(weekViewDate)+' – '+fmtShort(sunDate);
+  document.getElementById('peekWeekModalOverlay').classList.add('show');
+  peekWeekCache = null;
+  renderPeekWeekList(); // shows "Loading…" immediately
+
+  const monIso = isoDate(weekViewDate);
+  const sunIso = isoDate(sunDate);
+  peekWeekCache = await syncWeekHubspotTasks(monIso, sunIso, null, targetRole) || {};
+  renderPeekWeekList();
 }
-async function toggleViewDavidWeek(){
-  viewingDavidWeek = !viewingDavidWeek;
-  updateViewDavidWeekButton();
-  if(viewingDavidWeek && davidWeekTasksByDay===null){
-    const monIso = isoDate(weekViewDate);
-    const sunIso = isoDate(new Date(weekViewDate.getTime()+6*86400000));
-    davidWeekTasksByDay = await syncWeekHubspotTasks(monIso, sunIso, null, true) || {};
+function closePeekWeekModal(){
+  document.getElementById('peekWeekModalOverlay').classList.remove('show');
+}
+function renderPeekWeekList(){
+  const container = document.getElementById('peekWeekTasksList');
+  container.innerHTML = '';
+  if(peekWeekCache===null){
+    const hint=document.createElement('div'); hint.className='empty-hint';
+    hint.textContent = 'Loading…';
+    container.appendChild(hint);
+    return;
   }
-  renderWeekTasksTable();
+  PEEK_WEEK_DAY_LABELS.forEach(([dayKey,label],idx)=>{
+    const d = new Date(weekViewDate); d.setDate(weekViewDate.getDate()+idx);
+    const dayHeader = document.createElement('div');
+    dayHeader.style.cssText = 'font-weight:700;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin:14px 0 6px;';
+    dayHeader.textContent = label+' · '+fmtShort(d);
+    container.appendChild(dayHeader);
+
+    const tasks = (peekWeekCache[dayKey] || []);
+    if(tasks.length===0){
+      const hint=document.createElement('div'); hint.className='empty-hint'; hint.style.fontSize='12px';
+      hint.textContent='No tasks.';
+      container.appendChild(hint);
+      return;
+    }
+    tasks.forEach(t=>{
+      const isDone = taskIsDone(t);
+      const row=document.createElement('div'); row.className='task-row';
+      const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':''); chk.style.cursor='pointer';
+      const taskLabel=document.createElement('span'); taskLabel.style.cssText='flex:1;font-size:13.5px;color:var(--ink);cursor:pointer;';
+      taskLabel.textContent = t.subject||'Untitled task';
+      taskLabel.title = 'Tap to move to a different day';
+      taskLabel.onclick = ()=>openMoveModal(t, dayKey, peekWeekTargetRole);
+      if(isDone){ taskLabel.style.color='var(--muted)'; taskLabel.style.opacity='0.75'; }
+
+      const applyDoneStyle = (done)=>{
+        chk.className = 'chk'+(done?' checked':'');
+        taskLabel.style.color = done?'var(--muted)':'';
+        taskLabel.style.opacity = done?'0.75':'1';
+      };
+
+      chk.onclick = async ()=>{
+        if(!t.id){ alert('Can\'t update — tap Sync to refresh, then try again.'); return; }
+        const newDone = !taskIsDone(t);
+        applyDoneStyle(newDone);
+        chk.style.opacity = '0.6';
+        const ok = await updateHubspotTaskStatus(t.id, newDone, peekWeekTargetRole);
+        chk.style.opacity = '1';
+        if(ok){ t.done = newDone; }
+        else{ applyDoneStyle(taskIsDone(t)); alert('Could not update this task in HubSpot.'); }
+      };
+
+      row.appendChild(chk); row.appendChild(taskLabel);
+      container.appendChild(row);
+    });
+  });
 }
 
 function renderMeals(){
