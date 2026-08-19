@@ -817,6 +817,11 @@
       <option value="">— none —</option>
     </select>
 
+    <label class="push-field-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+      <input type="checkbox" id="pushAssignDavidCheck" style="width:auto;">
+      Assign to David
+    </label>
+
     <div class="push-modal-error" id="pushModalError"></div>
 
     <div class="push-modal-actions">
@@ -1416,6 +1421,36 @@
 
 </div>
 
+<!-- DAVID'S TASK VIEW — deliberately minimal: no calendar, no HubSpot client
+     data, just his own unassigned tasks. Mirrors the card/pill visual style
+     of the main app rather than reusing its markup, since none of the day/
+     week/month/quarter machinery applies here. -->
+<div class="app" id="davidRoot" style="display:none;">
+  <div class="card" style="max-width:640px;margin:0 auto;">
+    <div class="card-header-row" style="display:flex;align-items:center;justify-content:space-between;">
+      <span class="card-title">My Tasks</span>
+      <button class="push-modal-cancel" id="davidSignOutBtn" style="width:auto;padding:6px 14px;">Sign out</button>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0;">
+      <button class="tab-btn" id="davidDayPrev" style="width:auto;padding:6px 12px;">‹</button>
+      <div id="davidDayLabel" style="font-weight:600;min-width:170px;text-align:center;"></div>
+      <button class="tab-btn" id="davidDayNext" style="width:auto;padding:6px 12px;">›</button>
+    </div>
+    <div style="text-align:center;margin-bottom:14px;">
+      <button class="tab-btn" id="davidJumpToday" style="width:auto;padding:6px 14px;">Today</button>
+    </div>
+
+    <div id="davidTaskList"></div>
+
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <input type="text" id="davidNewTaskInput" class="push-field-input" placeholder="Add a task…" style="flex:1;">
+      <button class="push-modal-submit" id="davidAddTaskBtn" style="width:auto;padding:8px 16px;">Add</button>
+    </div>
+    <div class="push-modal-error" id="davidTaskError"></div>
+  </div>
+</div>
+
 <div class="storage-error" id="storageError"></div>
 <div class="saved-note" id="savedNote">Saved</div>
 
@@ -1431,10 +1466,14 @@
    of that, so a random signed-in stranger doesn't see the app UI at all. */
 const SUPABASE_URL = 'https://nqagqsuwwoiyraiqwgau.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_3i-orJP05ClbKbPtkmW6RQ_egjHBbiH';
-const ALLOWED_EMAIL = 'hello@ashleyquintana.com';
+const ALLOWED_ROLES = {
+  'hello@ashleyquintana.com': 'ashley',
+  'david@justq.co': 'david'
+};
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let currentUser = null;
+let currentRole = null; // 'ashley' | 'david', set once signed in
 
 async function initAuth(){
   document.getElementById('googleSignInBtn').onclick = doGoogleSignIn;
@@ -1500,14 +1539,20 @@ function hideLoadingOverlay(){ document.getElementById('loadingOverlay').classLi
 async function handleSession(session){
   const authGateEl=document.getElementById('authGate');
   const appRootEl=document.getElementById('appRoot');
+  const davidRootEl=document.getElementById('davidRoot');
   const loadingCard=document.getElementById('authCardLoading');
   const signInCard=document.getElementById('authCardSignIn');
   const deniedCard=document.getElementById('authCardDenied');
 
-  if(session && session.user && session.user.email &&
-     session.user.email.toLowerCase()===ALLOWED_EMAIL.toLowerCase()){
+  const roleForSession = (session && session.user && session.user.email)
+    ? ALLOWED_ROLES[session.user.email.toLowerCase()]
+    : null;
+
+  if(roleForSession === 'ashley'){
     currentUser = session.user;
+    currentRole = 'ashley';
     authGateEl.style.display='none';
+    davidRootEl.style.display='none';
     appRootEl.style.display='block';
     // A refresh token only arrives on the OAuth redirect that granted it (not
     // on every session check), so only try to store it when it's present.
@@ -1523,17 +1568,29 @@ async function handleSession(session){
     showLoadingOverlay();
     await init();
     hideLoadingOverlay();
+  }else if(roleForSession === 'david'){
+    currentUser = session.user;
+    currentRole = 'david';
+    authGateEl.style.display='none';
+    document.getElementById('davidRoot').style.display='block';
+    showLoadingOverlay();
+    await initDavidView();
+    hideLoadingOverlay();
   }else if(session && session.user){
     await sb.auth.signOut();
     currentUser = null;
+    currentRole = null;
     appRootEl.style.display='none';
+    davidRootEl.style.display='none';
     authGateEl.style.display='flex';
     loadingCard.style.display='none'; signInCard.style.display='none';
     deniedCard.style.display='block';
     document.getElementById('authDeniedEmail').textContent = session.user.email||'(no email)';
   }else{
     currentUser = null;
+    currentRole = null;
     appRootEl.style.display='none';
+    davidRootEl.style.display='none';
     authGateEl.style.display='flex';
     loadingCard.style.display='none'; deniedCard.style.display='none';
     signInCard.style.display='block';
@@ -1879,6 +1936,7 @@ function openPushModal(taskText, btnEl, onSuccess){
   document.getElementById('pushEstTimeInput').value = '';
   document.getElementById('pushDueDateInput').value = isoDate(new Date()); // defaults to today
   document.getElementById('pushProjectSelect').value = '';
+  document.getElementById('pushAssignDavidCheck').checked = false;
   document.getElementById('pushModalError').textContent = '';
   document.getElementById('pushModalOverlay').classList.add('show');
 }
@@ -1892,6 +1950,7 @@ async function submitPushModal(){
   const estTime = document.getElementById('pushEstTimeInput').value;
   const dueIso = document.getElementById('pushDueDateInput').value;
   const projectClient = document.getElementById('pushProjectSelect').value;
+  const assignToDavid = document.getElementById('pushAssignDavidCheck').checked;
   const errEl = document.getElementById('pushModalError');
 
   if(!subject){ errEl.textContent = 'Task name is required.'; return; }
@@ -1901,7 +1960,7 @@ async function submitPushModal(){
   const submitBtn = document.getElementById('pushModalSubmitBtn');
   submitBtn.disabled = true; submitBtn.textContent = 'Sending…';
 
-  const ok = await pushTaskToHubSpot(subject, dueIso, estTime, projectClient);
+  const ok = await pushTaskToHubSpot(subject, dueIso, estTime, projectClient, assignToDavid ? 'david' : undefined);
 
   submitBtn.disabled = false; submitBtn.textContent = 'Push to HubSpot';
 
@@ -1918,13 +1977,14 @@ async function submitPushModal(){
   }
 }
 
-async function pushTaskToHubSpot(subject, dueIso, estimatedTime, projectClient){
+async function pushTaskToHubSpot(subject, dueIso, estimatedTime, projectClient, assignTo){
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
       body: {
         action:'create', subject, dueIso,
         estimatedTime: (estimatedTime!==undefined && estimatedTime!==null && estimatedTime!=='') ? estimatedTime : null,
-        projectClient: projectClient || null
+        projectClient: projectClient || null,
+        assignTo: assignTo || null
       }
     });
     if(error) throw error;
@@ -2622,6 +2682,120 @@ const saveBrowsedQuarterDebounced = debounce(()=>{
 const saveMonthDebounced = debounce(()=>sset(currentMonthKey, monthData), 500);
 
 /* ---------------- Init ---------------- */
+/* ---------------- David's minimal task view ----------------
+   Deliberately thin: no Supabase planner_data reads/writes, no calendar,
+   no body/health tracking. Just his own unassigned HubSpot tasks for a
+   given date, via the same hubspot-tasks edge function Ashley uses --
+   the function itself decides "unassigned" vs "owned by Ashley" based on
+   who's calling (see callerRole in the edge function). */
+let davidSelectedDate = null;
+
+async function initDavidView(){
+  davidSelectedDate = stripTime(TODAY);
+
+  document.getElementById('davidSignOutBtn').onclick = ()=>doSignOut();
+  document.getElementById('davidDayPrev').onclick = ()=>changeDavidDay(-1);
+  document.getElementById('davidDayNext').onclick = ()=>changeDavidDay(1);
+  document.getElementById('davidJumpToday').onclick = ()=>{ davidSelectedDate = stripTime(TODAY); loadDavidDay(); };
+  document.getElementById('davidAddTaskBtn').onclick = ()=>submitDavidTask();
+  document.getElementById('davidNewTaskInput').onkeydown = (e)=>{ if(e.key==='Enter') submitDavidTask(); };
+
+  await loadDavidDay();
+}
+
+function changeDavidDay(delta){
+  const d = new Date(davidSelectedDate);
+  d.setDate(d.getDate()+delta);
+  davidSelectedDate = stripTime(d);
+  loadDavidDay();
+}
+
+async function loadDavidDay(){
+  const label = document.getElementById('davidDayLabel');
+  label.textContent = davidSelectedDate.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+
+  const listEl = document.getElementById('davidTaskList');
+  listEl.innerHTML = '<div class="empty-hint">Loading…</div>';
+
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { date: isoDate(davidSelectedDate) }
+    });
+    if(error) throw error;
+    renderDavidTasks(Array.isArray(data) ? data : []);
+  }catch(e){
+    console.error('Failed to load tasks', e);
+    listEl.innerHTML = '<div class="empty-hint">Could not load tasks — check your connection and try again.</div>';
+  }
+}
+
+function renderDavidTasks(tasks){
+  const listEl = document.getElementById('davidTaskList');
+  listEl.innerHTML = '';
+  if(!tasks || tasks.length===0){
+    const hint=document.createElement('div'); hint.className='empty-hint';
+    hint.textContent = 'No tasks for this day.';
+    listEl.appendChild(hint);
+    return;
+  }
+  tasks.forEach(t=>{
+    const row=document.createElement('div'); row.className='task-row';
+    const chk=document.createElement('div'); chk.className='chk'+(t.done?' checked':''); chk.style.cursor='pointer';
+    const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);';
+    label.textContent = t.subject||'Untitled task';
+    if(t.done){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
+
+    const applyDoneStyle = (done)=>{
+      chk.className = 'chk'+(done?' checked':'');
+      label.style.color = done?'var(--muted)':'';
+      label.style.opacity = done?'0.75':'1';
+    };
+
+    chk.onclick = async ()=>{
+      const newDone = !t.done;
+      applyDoneStyle(newDone); // optimistic
+      chk.style.opacity = '0.6';
+      try{
+        const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+          body: { action:'update', taskId: t.id, done: newDone }
+        });
+        if(error || (data && data.error)) throw error || new Error(data.error);
+        t.done = newDone;
+      }catch(e){
+        applyDoneStyle(t.done); // revert
+        alert('Could not update this task. Check your connection and try again.');
+      }
+      chk.style.opacity = '1';
+    };
+
+    row.appendChild(chk); row.appendChild(label);
+    listEl.appendChild(row);
+  });
+}
+
+async function submitDavidTask(){
+  const input = document.getElementById('davidNewTaskInput');
+  const errEl = document.getElementById('davidTaskError');
+  const subject = input.value.trim();
+  if(!subject){ errEl.textContent = 'Task name is required.'; return; }
+  errEl.textContent = '';
+
+  const btn = document.getElementById('davidAddTaskBtn');
+  btn.disabled = true; btn.textContent = 'Adding…';
+
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'create', subject, dueIso: isoDate(davidSelectedDate) }
+    });
+    if(error || !data || !data.success) throw error || new Error('Unexpected response');
+    input.value = '';
+    await loadDavidDay();
+  }catch(e){
+    errEl.textContent = 'Could not add task — check your connection and try again.';
+  }
+  btn.disabled = false; btn.textContent = 'Add';
+}
+
 async function init(){
   quarterData = (await sget(TODAY_QUARTER_KEY)) || loadQuarterData(TODAY_QNUM_YEAR.qNum, TODAY_QNUM_YEAR.year);
   renderPulse();
