@@ -157,7 +157,7 @@
   }
   .card-collapse-btn:hover{border-color:var(--navy-light);}
   .card.collapsed{padding-bottom:18px;}
-  .card.collapsed > *:not(.card-title-row){display:none !important;}
+  .card.collapsed > *:not(.card-title-row):not(.card-collapse-btn){display:none !important;}
   .card.collapsed .card-title-row{margin-bottom:0;}
   .card-title{font-size:22px;font-weight:600;color:var(--ink);}
   .card-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding-right:34px;}
@@ -1118,11 +1118,11 @@
           <div class="add-row">
             <button class="add-btn" id="addTaskBtn">+ add task</button>
           </div>
-        </div>
-      </div>
 
-      <div class="view-as-row role-ashley-only">
-        <button class="view-as-david-btn" id="viewDavidDayBtn">View David's Tasks</button>
+          <div class="view-as-row role-ashley-only">
+            <button class="view-as-david-btn" id="viewDavidDayBtn">View David's Tasks</button>
+          </div>
+        </div>
       </div>
 
       <div class="section-bar">Habits</div>
@@ -1568,7 +1568,7 @@
       <div id="myTasksTableLabel" class="rest-hint" style="margin-bottom:6px;"></div>
       <div class="my-tasks-table-wrap">
         <table class="my-tasks-table" id="myTasksTable">
-          <thead><tr><th></th><th>Subject</th><th>Stage</th><th>Project/Client</th><th>Due</th></tr></thead>
+          <thead><tr><th></th><th>Task</th><th>Status</th><th>Project</th><th>Due</th></tr></thead>
           <tbody id="myTasksBody"></tbody>
         </table>
       </div>
