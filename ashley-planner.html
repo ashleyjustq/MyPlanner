@@ -2815,7 +2815,6 @@ async function init(){
   await loadWeek();
   await loadMonthTab();
   await loadQuarterTab();
-  await loadMyTasksTable();
 
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -3031,6 +3030,7 @@ async function loadQuarterTab(){
   await rescanBrowsedQuarterCounts();
   await rescanBrowsedQuarterHealth();
   renderQuarterTab();
+  await loadMyTasksTable();
 }
 async function loadMonthTab(){
   const year = monthViewDate.getFullYear(), monthIndex = monthViewDate.getMonth();
@@ -4246,9 +4246,21 @@ async function loadMyTasksTable(){
   myTasksCache = null;
   myTasksPage = 1;
   renderMyTasksTable(); // shows "Loading…" immediately
+
+  // Scoped to whichever quarter is currently browsed on the Quarter tab
+  // (respects Prev/Next/Jump-to-this-quarter) rather than all-time.
+  const { qNum, year } = calendarQuarterOf(quarterViewDate);
+  const qStart = new Date(year, (qNum-1)*3, 1);
+  const qEnd = new Date(year, qNum*3, 0); // last day of the quarter
+
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: { action:'listAll', viewAs: myTasksViewingRole || undefined }
+      body: {
+        action:'listAll',
+        viewAs: myTasksViewingRole || undefined,
+        quarterStart: isoDate(qStart),
+        quarterEnd: isoDate(qEnd),
+      }
     });
     if(error || (data && data.error) || !Array.isArray(data)) throw error || new Error((data&&data.error)||'Unexpected response');
     myTasksCache = data;
@@ -4326,7 +4338,7 @@ function renderMyTasksTable(){
     chkTd.appendChild(chk); tr.appendChild(chkTd);
 
     const subjectTd = document.createElement('td'); subjectTd.textContent = t.subject || 'Untitled task'; tr.appendChild(subjectTd);
-    const stageTd = document.createElement('td'); stageTd.textContent = t.pipelineStage || '—'; tr.appendChild(stageTd);
+    const statusTd = document.createElement('td'); statusTd.textContent = t.status || '—'; tr.appendChild(statusTd);
     const pcTd = document.createElement('td'); pcTd.textContent = t.projectClient || '—'; tr.appendChild(pcTd);
     const dueTd = document.createElement('td');
     dueTd.textContent = t.dueIso ? fmtShort(new Date(t.dueIso+'T00:00:00')) : '—';
