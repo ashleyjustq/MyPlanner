@@ -116,12 +116,11 @@
   /* ---- Role-based visibility ----
      body.role-david / body.role-ashley are set once at sign-in (see
      handleSession). Everything tagged .role-ashley-only is a section David's
-     account never sees; .role-david-only is the reverse. Quarter is Ashley-
-     only entirely (tab + view), per her explicit scope. */
+     account never sees; .role-david-only is the reverse. David now gets a
+     trimmed Quarter tab (Multipliers + Linger + My Tasks) — the sections he
+     doesn't get are tagged individually inside the Quarter view markup. */
   body.role-david .role-ashley-only{display:none !important;}
   body.role-ashley .role-david-only{display:none !important;}
-  body.role-david .tab-btn[data-view="quarter"]{display:none !important;}
-  body.role-david #view-quarter{display:none !important;}
   /* Day view's col2 layout assumes both the calendar timeline and the tasks
      column are present (1fr 1.3fr). David only gets the tasks column, so it
      should take the full width rather than leaving a blank gap. */
@@ -148,9 +147,20 @@
     border-radius:14px;
     padding:18px 18px 20px;
     margin-bottom:12px;
+    position:relative;
   }
+  .card-collapse-btn{
+    position:absolute;top:14px;right:16px;z-index:2;
+    background:#fff;border:1px solid var(--border);border-radius:6px;
+    width:26px;height:26px;line-height:1;font-size:16px;font-weight:700;color:var(--navy);
+    cursor:pointer;padding:0;
+  }
+  .card-collapse-btn:hover{border-color:var(--navy-light);}
+  .card.collapsed{padding-bottom:18px;}
+  .card.collapsed > *:not(.card-title-row){display:none !important;}
+  .card.collapsed .card-title-row{margin-bottom:0;}
   .card-title{font-size:22px;font-weight:600;color:var(--ink);}
-  .card-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+  .card-title-row{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;padding-right:34px;}
   .header-badges{display:flex;gap:16px;align-items:baseline;}
   .header-badge-group{display:flex;align-items:baseline;gap:5px;}
   .header-badge-label{font-size:12px;color:var(--muted);font-weight:400;}
@@ -654,6 +664,25 @@
 
   /* Meal table */
   .meal-grid-wrap{overflow-x:auto;margin-bottom:6px;}
+
+  /* ---- My Tasks table (Quarter tab) ---- */
+  .my-tasks-table-wrap{overflow-x:auto;margin-bottom:10px;}
+  .my-tasks-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:520px;}
+  .my-tasks-table th{
+    text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.03em;padding:6px 8px;border-bottom:1.5px solid var(--border);
+  }
+  .my-tasks-table td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .my-tasks-table tr.mt-done td{color:var(--muted);opacity:.7;}
+  .my-tasks-table td.mt-chk-cell{width:32px;}
+  .my-tasks-empty{padding:16px 8px;color:var(--muted);font-size:13px;text-align:center;}
+  .my-tasks-pagination{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:4px;}
+  .my-tasks-pagination button{
+    background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 14px;
+    font-family:inherit;font-size:12.5px;font-weight:600;color:var(--navy);cursor:pointer;
+  }
+  .my-tasks-pagination button:disabled{opacity:.4;cursor:default;}
+  .my-tasks-pagination span{font-size:12px;color:var(--muted);}
   .meal-table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:640px;table-layout:fixed;}
   .meal-table th{
     background:var(--navy);color:#fff;font-size:10px;text-transform:uppercase;
@@ -1442,8 +1471,8 @@
         </div>
       </div>
 
-      <div class="section-bar">Plan Rest First <span class="sub">set before any focus days</span></div>
-      <div class="rest-grid">
+      <div class="section-bar role-ashley-only">Plan Rest First <span class="sub">set before any focus days</span></div>
+      <div class="rest-grid role-ashley-only">
         <div class="rest-box free">
           <div class="label">Free Days</div><div class="desc">fully off</div>
           <div class="tgt-row">Target <input type="text" id="freeTarget"></div>
@@ -1460,10 +1489,10 @@
           <div class="tgt-row">Actual <span id="focusActual">0</span></div>
         </div>
       </div>
-      <div class="rest-hint">Actuals tally automatically from the day types you log on the Today tab.</div>
+      <div class="rest-hint role-ashley-only">Actuals tally automatically from the day types you log on the Today tab.</div>
 
-      <div class="section-bar">Looking Back · Right Now · Looking Ahead</div>
-      <div class="col3">
+      <div class="section-bar role-ashley-only">Looking Back · Right Now · Looking Ahead</div>
+      <div class="col3 role-ashley-only">
         <div>
           <div class="col-head pink">Proud of</div>
           <div class="col-sub">last quarter — what actually moved</div>
@@ -1493,7 +1522,7 @@
     </div>
 
     <!-- MY HEALTH -->
-    <div class="card">
+    <div class="card role-ashley-only">
       <div class="card-title-row">
         <div class="card-title" style="font-size:19px;">My Health</div>
       </div>
@@ -1523,6 +1552,27 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- MY TASKS -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title" style="font-size:19px;">My Tasks</div>
+      </div>
+      <div class="view-as-row role-ashley-only">
+        <button class="view-as-david-btn" id="viewDavidTasksTableBtn">View David's Tasks</button>
+      </div>
+      <div class="view-as-row role-david-only">
+        <button class="view-as-david-btn" id="viewAshleyTasksTableBtn">View Ashley's Tasks</button>
+      </div>
+      <div id="myTasksTableLabel" class="rest-hint" style="margin-bottom:6px;"></div>
+      <div class="my-tasks-table-wrap">
+        <table class="my-tasks-table" id="myTasksTable">
+          <thead><tr><th></th><th>Subject</th><th>Stage</th><th>Project/Client</th><th>Due</th></tr></thead>
+          <tbody id="myTasksBody"></tbody>
+        </table>
+      </div>
+      <div class="my-tasks-pagination" id="myTasksPagination"></div>
     </div>
   </div>
 
@@ -2759,16 +2809,13 @@ const saveMonthDebounced = debounce(()=>sset(currentMonthKey, monthData), 500);
 async function init(){
   quarterData = (await sget(TODAY_QUARTER_KEY)) || loadQuarterData(TODAY_QNUM_YEAR.qNum, TODAY_QNUM_YEAR.year);
   renderPulse();
-  if(currentRole !== 'david'){
-    await rescanQuarterCounts(); // one full pass over today's real quarter — everything after this is incremental
-  }
+  await rescanQuarterCounts(); // one full pass over today's real quarter — everything after this is incremental
 
   await loadDay();
   await loadWeek();
   await loadMonthTab();
-  if(currentRole !== 'david'){
-    await loadQuarterTab(); // Quarter tab is hidden entirely for David — no need to load it
-  }
+  await loadQuarterTab();
+  await loadMyTasksTable();
 
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -2835,10 +2882,14 @@ async function init(){
   document.getElementById('viewDavidWeekBtn').onclick=()=>openPeekWeekModal('david');
   document.getElementById('viewAshleyWeekBtn').onclick=()=>openPeekWeekModal('ashley');
   document.getElementById('peekWeekCloseBtn').onclick=()=>closePeekWeekModal();
+  document.getElementById('viewDavidTasksTableBtn').onclick=()=>toggleMyTasksView('david');
+  document.getElementById('viewAshleyTasksTableBtn').onclick=()=>toggleMyTasksView('ashley');
 
   document.getElementById('searchBtn').onclick=()=>{ closeDrawer(); openSearchModal(); };
   document.getElementById('searchModalCancelBtn').onclick=()=>closeSearchModal();
   document.getElementById('searchInput').oninput=()=>runSearchDebounced();
+
+  initCardCollapsers();
 }
 function openDrawer(){
   document.getElementById('sideDrawer').classList.add('open');
@@ -4180,7 +4231,144 @@ function renderEditableList(elId, key){
   });
 }
 
+/* ================= MY TASKS (Quarter tab) =================
+   Full HubSpot task list (no date range), shared by both roles. Not
+   date-scoped like Day/Week, so it doesn't need to reload on quarter
+   navigation — just once at init, and again whenever the view-as toggle
+   flips. Sorted open-first server-side; toggling a checkbox re-sorts and
+   re-renders client-side so a completed task drops to the bottom. */
+const MY_TASKS_PAGE_SIZE = 10;
+let myTasksCache = null;
+let myTasksPage = 1;
+let myTasksViewingRole = null; // null = own tasks, 'david'|'ashley' = peeking
+
+async function loadMyTasksTable(){
+  myTasksCache = null;
+  myTasksPage = 1;
+  renderMyTasksTable(); // shows "Loading…" immediately
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'listAll', viewAs: myTasksViewingRole || undefined }
+    });
+    if(error || (data && data.error) || !Array.isArray(data)) throw error || new Error((data&&data.error)||'Unexpected response');
+    myTasksCache = data;
+  }catch(e){
+    console.error('Failed to load My Tasks', e);
+    myTasksCache = [];
+  }
+  renderMyTasksTable();
+}
+
+function updateMyTasksViewButtons(){
+  const davidBtn = document.getElementById('viewDavidTasksTableBtn');
+  if(davidBtn){
+    davidBtn.textContent = myTasksViewingRole==='david' ? '← Back to My Tasks' : "View David's Tasks";
+    davidBtn.classList.toggle('active', myTasksViewingRole==='david');
+  }
+  const ashleyBtn = document.getElementById('viewAshleyTasksTableBtn');
+  if(ashleyBtn){
+    ashleyBtn.textContent = myTasksViewingRole==='ashley' ? '← Back to My Tasks' : "View Ashley's Tasks";
+    ashleyBtn.classList.toggle('active', myTasksViewingRole==='ashley');
+  }
+  const labelEl = document.getElementById('myTasksTableLabel');
+  if(labelEl){
+    labelEl.textContent = myTasksViewingRole==='david' ? "Showing David's tasks."
+      : myTasksViewingRole==='ashley' ? "Showing Ashley's tasks." : '';
+  }
+}
+async function toggleMyTasksView(targetRole){
+  myTasksViewingRole = (myTasksViewingRole===targetRole) ? null : targetRole;
+  updateMyTasksViewButtons();
+  await loadMyTasksTable();
+}
+
+function renderMyTasksTable(){
+  const tbody = document.getElementById('myTasksBody');
+  const pagEl = document.getElementById('myTasksPagination');
+  tbody.innerHTML = '';
+  pagEl.innerHTML = '';
+
+  if(myTasksCache===null || myTasksCache.length===0){
+    const tr = document.createElement('tr');
+    const td = document.createElement('td'); td.colSpan = 5; td.className = 'my-tasks-empty';
+    td.textContent = myTasksCache===null ? 'Loading…' : 'No tasks found.';
+    tr.appendChild(td); tbody.appendChild(tr);
+    return;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(myTasksCache.length / MY_TASKS_PAGE_SIZE));
+  if(myTasksPage > totalPages) myTasksPage = totalPages;
+  const startIdx = (myTasksPage-1) * MY_TASKS_PAGE_SIZE;
+  const pageItems = myTasksCache.slice(startIdx, startIdx + MY_TASKS_PAGE_SIZE);
+
+  pageItems.forEach(t=>{
+    const tr = document.createElement('tr');
+    if(t.done) tr.classList.add('mt-done');
+
+    const chkTd = document.createElement('td'); chkTd.className = 'mt-chk-cell';
+    const chk = document.createElement('div'); chk.className = 'chk'+(t.done?' checked':''); chk.style.cursor='pointer';
+    chk.onclick = async ()=>{
+      if(!t.id) return;
+      const newDone = !t.done;
+      chk.className = 'chk'+(newDone?' checked':'');
+      tr.classList.toggle('mt-done', newDone);
+      const ok = await updateHubspotTaskStatus(t.id, newDone, myTasksViewingRole);
+      if(ok){
+        t.done = newDone;
+        myTasksCache.sort((a,b)=> (a.done===b.done) ? 0 : (a.done ? 1 : -1));
+        renderMyTasksTable();
+      }else{
+        chk.className = 'chk'+(t.done?' checked':'');
+        tr.classList.toggle('mt-done', t.done);
+        alert('Could not update this task in HubSpot.');
+      }
+    };
+    chkTd.appendChild(chk); tr.appendChild(chkTd);
+
+    const subjectTd = document.createElement('td'); subjectTd.textContent = t.subject || 'Untitled task'; tr.appendChild(subjectTd);
+    const stageTd = document.createElement('td'); stageTd.textContent = t.pipelineStage || '—'; tr.appendChild(stageTd);
+    const pcTd = document.createElement('td'); pcTd.textContent = t.projectClient || '—'; tr.appendChild(pcTd);
+    const dueTd = document.createElement('td');
+    dueTd.textContent = t.dueIso ? fmtShort(new Date(t.dueIso+'T00:00:00')) : '—';
+    tr.appendChild(dueTd);
+
+    tbody.appendChild(tr);
+  });
+
+  if(totalPages > 1){
+    const prevBtn = document.createElement('button'); prevBtn.textContent = '‹ Prev'; prevBtn.disabled = myTasksPage<=1;
+    prevBtn.onclick = ()=>{ myTasksPage--; renderMyTasksTable(); };
+    const label = document.createElement('span'); label.textContent = `Page ${myTasksPage} of ${totalPages}`;
+    const nextBtn = document.createElement('button'); nextBtn.textContent = 'Next ›'; nextBtn.disabled = myTasksPage>=totalPages;
+    nextBtn.onclick = ()=>{ myTasksPage++; renderMyTasksTable(); };
+    pagEl.appendChild(prevBtn); pagEl.appendChild(label); pagEl.appendChild(nextBtn);
+  }
+}
+
 initAuth();
+
+/* ---------------- Collapsible cards ----------------
+   Adds a +/- toggle to every top-level .card that has a .card-title-row,
+   top-right corner (absolutely positioned so it never disrupts the row's
+   existing flex layout of title + badges). Idempotent — safe to call every
+   time init() runs, since it skips cards that already have a button. */
+function initCardCollapsers(){
+  document.querySelectorAll('.card').forEach(card=>{
+    const titleRow = card.querySelector(':scope > .card-title-row');
+    if(!titleRow) return;
+    if(card.querySelector(':scope > .card-collapse-btn')) return; // already added
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'card-collapse-btn';
+    btn.setAttribute('aria-label', 'Collapse section');
+    btn.textContent = '−';
+    btn.onclick = ()=>{
+      const collapsed = card.classList.toggle('collapsed');
+      btn.textContent = collapsed ? '+' : '−';
+    };
+    card.appendChild(btn); // appended to .card itself, not the title row — absolute positioning handles placement
+  });
+}
 </script>
 </body>
 </html>
