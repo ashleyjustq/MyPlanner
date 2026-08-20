@@ -907,29 +907,18 @@
 <!-- MOVE TASK MODAL -->
 <div class="push-modal-overlay" id="moveModalOverlay">
   <div class="push-modal-card">
-    <div class="push-modal-title">Move Task</div>
+    <div class="push-modal-title">Task</div>
     <div class="move-modal-task-name" id="moveModalTaskName"></div>
     <div class="task-detail-meta" id="moveModalTaskMeta"></div>
 
-    <label class="push-field-label" for="moveModalDayPicker">Move to</label>
-    <div class="move-day-pills" id="moveDayPills"></div>
+    <label class="push-field-label" for="moveModalDatePicker">Move to</label>
+    <input type="date" id="moveModalDatePicker" class="push-field-input">
 
     <div class="push-modal-error" id="moveModalError"></div>
 
     <div class="push-modal-actions">
       <button class="push-modal-cancel" id="moveModalCancelBtn">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<!-- TASK DETAIL MODAL -->
-<div class="push-modal-overlay" id="taskDetailModalOverlay">
-  <div class="push-modal-card">
-    <div class="push-modal-title" id="taskDetailName">Task</div>
-    <div class="task-detail-meta" id="taskDetailMeta"></div>
-
-    <div class="push-modal-actions">
-      <button class="push-modal-cancel" id="taskDetailCloseBtn">Close</button>
+      <button class="push-modal-submit" id="moveModalSubmitBtn">Move</button>
     </div>
   </div>
 </div>
@@ -2498,6 +2487,16 @@ const CALORIE_TARGET = 1750; // kcal/day
 const MEAL_ROWS = ['breakfast','lunch','dinner','snacks'];
 const WEEK_DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
 
+// After rescheduling a task via the date picker, the Week tab's per-day
+// grouping needs to know whether the new date still falls within the
+// currently displayed week (and if so, which column) — null means it moved
+// outside this week entirely, so it just disappears from view here.
+function isoToDayKeyInCurrentWeek(iso){
+  const d = stripTime(new Date(iso+'T00:00:00'));
+  const diffDays = Math.round((d - weekViewDate) / 86400000);
+  return (diffDays>=0 && diffDays<=6) ? WEEK_DAY_KEYS[diffDays] : null;
+}
+
 function isWeekendDate(d){ const dow=d.getDay(); return dow===0 || dow===6; }
 
 /* ---------------- Default (blank) data ---------------- */
@@ -2874,7 +2873,7 @@ async function init(){
   document.getElementById('pushModalCancelBtn').onclick=()=>closePushModal();
   document.getElementById('pushModalSubmitBtn').onclick=()=>submitPushModal();
   document.getElementById('moveModalCancelBtn').onclick=()=>closeMoveModal();
-  document.getElementById('taskDetailCloseBtn').onclick=()=>closeTaskDetailModal();
+  document.getElementById('moveModalSubmitBtn').onclick=()=>submitMoveModal();
   document.getElementById('monthEventCloseBtn').onclick=()=>closeMonthEventModal();
   document.getElementById('viewDavidDayBtn').onclick=()=>openPeekDayModal();
   document.getElementById('peekDayCloseBtn').onclick=()=>closePeekDayModal();
@@ -2958,6 +2957,7 @@ async function loadDay(){
       autoSyncCalendar(iso); // "Today's Shape" is Ashley-only — no need to fetch it for David
     }
     autoSyncHubspot(iso);
+    autoSyncOverdue(iso);
   }
 }
 async function autoSyncCalendar(iso){
@@ -3339,20 +3339,6 @@ function renderTaskMetaInto(container, task){
   container.appendChild(notesBox);
 }
 
-/* ---------------- Task Detail modal (Day tab, Planned Tasks) ----------------
-   Read-only — tapping a task's name shows its full detail without leaving
-   the Day tab. Works the same whether looking at your own list or David's
-   (via the View David's Tasks toggle), since both render through the same
-   renderHubspotTasksList(). */
-function openTaskDetailModal(task){
-  document.getElementById('taskDetailName').textContent = task.subject || 'Untitled task';
-  renderTaskMetaInto(document.getElementById('taskDetailMeta'), task);
-  document.getElementById('taskDetailModalOverlay').classList.add('show');
-}
-function closeTaskDetailModal(){
-  document.getElementById('taskDetailModalOverlay').classList.remove('show');
-}
-
 /* ---------------- Month event detail modal (Month tab, Calendar) ----------------
    All-day events only (per the Month tab's existing scope), so "date/time"
    here is just the date — there's no time-of-day component to show. */
@@ -3367,59 +3353,46 @@ function closeMonthEventModal(){
   document.getElementById('monthEventModalOverlay').classList.remove('show');
 }
 
-/* ---------------- Move Task modal (Task Planner, Week tab) ----------------
-   Tap-to-move rather than drag-and-drop — reliable on iPad and desktop alike,
-   where native HTML5 drag-and-drop is genuinely unreliable on touch. */
-let moveModalCtx = null; // {task, fromDayKey}
+/* ---------------- Task modal (Day's Planned Tasks + Week's Task Planner) ----------------
+   One shared modal for both tabs (and both peek-at-the-other-person modals) —
+   tapping a task's name always shows its detail and lets you move it to any
+   date via a date picker (not just days within the current week). Each call
+   site supplies its own onSuccess so this stays agnostic of whether the
+   underlying data is Day's flat list or Week's per-day grouping. */
+let moveModalCtx = null; // {task, viewAsRole, onSuccess}
 
-function openMoveModal(task, fromDayKey, viewAsRole){
-  moveModalCtx = { task, fromDayKey, viewAsRole: viewAsRole || null };
+function openMoveModal(task, currentDueIso, viewAsRole, onSuccess){
+  moveModalCtx = { task, viewAsRole: viewAsRole || null, onSuccess };
   document.getElementById('moveModalTaskName').textContent = task.subject || 'Untitled task';
   renderTaskMetaInto(document.getElementById('moveModalTaskMeta'), task);
   document.getElementById('moveModalError').textContent = '';
-
-  const dayLabels = [['mon','MON'],['tue','TUE'],['wed','WED'],['thu','THU'],['fri','FRI'],['sat','SAT'],['sun','SUN']];
-  const pillsEl = document.getElementById('moveDayPills');
-  pillsEl.innerHTML = '';
-  dayLabels.forEach(([key,label],idx)=>{
-    const d = new Date(weekViewDate); d.setDate(weekViewDate.getDate()+idx);
-    const btn = document.createElement('button');
-    btn.className = 'move-day-pill'+(key===fromDayKey?' current':'');
-    btn.innerHTML = label+'<br>'+fmtShort(d);
-    if(key===fromDayKey){ btn.disabled = true; }
-    btn.onclick = ()=>submitMoveModal(key, isoDate(d));
-    pillsEl.appendChild(btn);
-  });
-
+  document.getElementById('moveModalDatePicker').value = currentDueIso || '';
   document.getElementById('moveModalOverlay').classList.add('show');
 }
 function closeMoveModal(){
   document.getElementById('moveModalOverlay').classList.remove('show');
   moveModalCtx = null;
 }
-async function submitMoveModal(toDayKey, toDueIso){
+async function submitMoveModal(){
   if(!moveModalCtx) return;
-  const { task, fromDayKey, viewAsRole } = moveModalCtx;
+  const { task, viewAsRole, onSuccess } = moveModalCtx;
   const errEl = document.getElementById('moveModalError');
+  const newDueIso = document.getElementById('moveModalDatePicker').value;
 
   if(!task.id){
     errEl.textContent = 'Can\'t move this task — tap Sync to refresh, then try again.';
     return;
   }
+  if(!newDueIso){
+    errEl.textContent = 'Pick a date.';
+    return;
+  }
 
   errEl.textContent = 'Moving…';
-  const ok = await rescheduleHubspotTask(task.id, toDueIso, viewAsRole);
+  const ok = await rescheduleHubspotTask(task.id, newDueIso, viewAsRole);
 
   if(ok){
-    const byDay = (viewAsRole ? peekWeekCache : weekData.hubspotTasksByDay) || {};
-    if(byDay[fromDayKey]){
-      const idx = byDay[fromDayKey].findIndex(t=>t.id===task.id);
-      if(idx>-1) byDay[fromDayKey].splice(idx,1);
-    }
-    if(!byDay[toDayKey]) byDay[toDayKey]=[];
-    byDay[toDayKey].push(task);
-    if(viewAsRole){ peekWeekCache = byDay; renderPeekWeekList(); }
-    else{ weekData.hubspotTasksByDay = byDay; saveWeekDebounced(); renderWeekTasksTable(); }
+    if(onSuccess) onSuccess(newDueIso);
     closeMoveModal();
   }else{
     errEl.textContent = 'Could not move this task in HubSpot. Try again.';
@@ -3430,20 +3403,39 @@ function renderHubspotTasksList(){
   const container = document.getElementById('hubspotTasksList');
   container.innerHTML='';
   const tasks = dayData.hubspotTasks;
-  if(!tasks || tasks.length===0){
+  const overdue = dayOverdueTasks || [];
+
+  if((!tasks || tasks.length===0) && overdue.length===0){
     const hint=document.createElement('div'); hint.className='empty-hint';
     hint.textContent = tasks===null ? 'Loading…' : 'No HubSpot tasks due today.';
     container.appendChild(hint);
     return;
   }
-  tasks.forEach(t=>{
+
+  // Shared row-builder for both today's own tasks and the appended overdue
+  // ones — sourceArray is whichever array this task actually lives in
+  // (dayData.hubspotTasks or dayOverdueTasks), so a successful move removes
+  // it from the right place regardless of which section it came from.
+  function buildRow(t, sourceArray, isOverdue){
     const isDone = taskIsDone(t);
     const row=document.createElement('div'); row.className='task-row';
     const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':''); chk.style.cursor='pointer';
     const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);cursor:pointer;';
-    label.textContent = t.subject||'Untitled task';
-    label.onclick = ()=>openTaskDetailModal(t);
+    label.appendChild(document.createTextNode(t.subject||'Untitled task'));
+    if(isOverdue){
+      const tag=document.createElement('span');
+      tag.textContent='Overdue';
+      tag.style.cssText='color:var(--personal);font-size:10.5px;font-weight:700;margin-left:6px;';
+      label.appendChild(tag);
+    }
     if(isDone){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
+
+    label.onclick = ()=>openMoveModal(t, t.dueIso || isoDate(selectedDate), null, (newDueIso)=>{
+      const idx = sourceArray.indexOf(t);
+      if(idx>-1) sourceArray.splice(idx,1);
+      if(!isOverdue) saveDayDebounced();
+      renderHubspotTasksList();
+    });
 
     const applyDoneStyle = (done)=>{
       chk.className = 'chk'+(done?' checked':'');
@@ -3463,7 +3455,7 @@ function renderHubspotTasksList(){
       chk.style.opacity = '1';
       if(ok){
         t.done = newDone;
-        saveDayDebounced();
+        if(!isOverdue) saveDayDebounced();
       }else{
         applyDoneStyle(taskIsDone(t)); // revert to the pre-click state
         alert('Could not update this task in HubSpot. Check your connection and try again.');
@@ -3472,14 +3464,42 @@ function renderHubspotTasksList(){
 
     row.appendChild(chk); row.appendChild(label);
     container.appendChild(row);
-  });
+  }
+
+  (tasks||[]).forEach(t=>buildRow(t, tasks, false));
+  overdue.forEach(t=>buildRow(t, overdue, true));
+}
+
+/* ---------------- Overdue tasks (Day tab, Planned Tasks) ----------------
+   Open tasks due before today, appended inline at the end of the Planned
+   Tasks list with a small red "Overdue" tag rather than a separate section.
+   Only fetched/shown when browsing today itself — "overdue" isn't a
+   meaningful concept relative to some other day you're just browsing. */
+let dayOverdueTasks = null;
+async function autoSyncOverdue(iso){
+  if(iso !== isoDate(TODAY)){
+    dayOverdueTasks = [];
+    renderHubspotTasksList();
+    return;
+  }
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'overdue', beforeIso: iso }
+    });
+    if(error || (data && data.error) || !Array.isArray(data)) throw error || new Error((data&&data.error)||'Unexpected response');
+    dayOverdueTasks = data;
+  }catch(e){
+    console.error('Failed to load overdue tasks', e);
+    dayOverdueTasks = [];
+  }
+  renderHubspotTasksList();
 }
 
 /* ---------------- Peek-at-the-other-person's-day modal (Day tab) ----------------
    Ashley-only for now — opens David's Planned Tasks for the currently
    selected date in a modal, without touching her own Planned Tasks list.
-   Fully interactive (checkbox works), tapping a task opens the same Task
-   Detail modal used everywhere else. */
+   Fully interactive (checkbox works), tapping a task opens the same
+   move/detail modal used everywhere else. */
 let peekDayTasksCache = null;
 async function openPeekDayModal(){
   document.getElementById('peekDayModalTitle').textContent = "David's Tasks — " + dayTitleFor(selectedDate);
@@ -3509,7 +3529,11 @@ function renderPeekDayList(){
     const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':''); chk.style.cursor='pointer';
     const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);cursor:pointer;';
     label.textContent = t.subject||'Untitled task';
-    label.onclick = ()=>openTaskDetailModal(t);
+    label.onclick = ()=>openMoveModal(t, t.dueIso || isoDate(selectedDate), 'david', (newDueIso)=>{
+      const idx = peekDayTasksCache.indexOf(t);
+      if(idx>-1) peekDayTasksCache.splice(idx,1);
+      renderPeekDayList();
+    });
     if(isDone){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
 
     const applyDoneStyle = (done)=>{
@@ -3938,7 +3962,23 @@ function renderWeekTasksTable(){
       const label=document.createElement('span'); label.textContent = t.subject||'Untitled task';
       label.style.cursor='pointer';
       label.title='Tap to move to a different day';
-      label.onclick=()=>openMoveModal(t, dayKey);
+      const dayIdx = WEEK_DAY_KEYS.indexOf(dayKey);
+      const currentDue = new Date(weekViewDate); currentDue.setDate(weekViewDate.getDate()+dayIdx);
+      label.onclick=()=>openMoveModal(t, isoDate(currentDue), null, (newDueIso)=>{
+        const byDayNow = weekData.hubspotTasksByDay || {};
+        if(byDayNow[dayKey]){
+          const idx = byDayNow[dayKey].indexOf(t);
+          if(idx>-1) byDayNow[dayKey].splice(idx,1);
+        }
+        const newDayKey = isoToDayKeyInCurrentWeek(newDueIso);
+        if(newDayKey){
+          if(!byDayNow[newDayKey]) byDayNow[newDayKey]=[];
+          byDayNow[newDayKey].push(t);
+        }
+        weekData.hubspotTasksByDay = byDayNow;
+        saveWeekDebounced();
+        renderWeekTasksTable();
+      });
       chk.onclick=async()=>{
         if(!t.id){ alert('Can\'t update — tap Sync to refresh, then try again.'); return; }
         const newDone = !taskIsDone(t);
@@ -4029,7 +4069,21 @@ function renderPeekWeekList(){
       const taskLabel=document.createElement('span'); taskLabel.style.cssText='flex:1;font-size:13.5px;color:var(--ink);cursor:pointer;';
       taskLabel.textContent = t.subject||'Untitled task';
       taskLabel.title = 'Tap to move to a different day';
-      taskLabel.onclick = ()=>openMoveModal(t, dayKey, peekWeekTargetRole);
+      const currentDue = new Date(weekViewDate); currentDue.setDate(weekViewDate.getDate()+idx);
+      taskLabel.onclick = ()=>openMoveModal(t, isoDate(currentDue), peekWeekTargetRole, (newDueIso)=>{
+        const byDayNow = peekWeekCache || {};
+        if(byDayNow[dayKey]){
+          const i = byDayNow[dayKey].indexOf(t);
+          if(i>-1) byDayNow[dayKey].splice(i,1);
+        }
+        const newDayKey = isoToDayKeyInCurrentWeek(newDueIso);
+        if(newDayKey){
+          if(!byDayNow[newDayKey]) byDayNow[newDayKey]=[];
+          byDayNow[newDayKey].push(t);
+        }
+        peekWeekCache = byDayNow;
+        renderPeekWeekList();
+      });
       if(isDone){ taskLabel.style.color='var(--muted)'; taskLabel.style.opacity='0.75'; }
 
       const applyDoneStyle = (done)=>{
