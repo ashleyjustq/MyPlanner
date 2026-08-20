@@ -217,7 +217,10 @@
 
   /* Three column lists */
   .col3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  .meals-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  .meals-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:stretch;}
+  .meals-layout > div{display:flex;flex-direction:column;}
+  .meals-layout > div:first-child{height:100%;}
+  .meals-layout > div:first-child .day-meal-table{flex:1;height:100%;}
   @media(max-width:640px){.col3{grid-template-columns:1fr;} .rest-grid{grid-template-columns:1fr;} .col2{grid-template-columns:1fr !important;} .meals-layout{grid-template-columns:1fr;} .looking-back-grid{grid-template-columns:1fr !important;}}
   .col-head{font-size:12.5px;font-weight:700;margin-bottom:2px;}
   .col-head.pink{color:var(--accent-pink);}
@@ -479,8 +482,27 @@
     display:none;align-items:center;justify-content:center;padding:20px;
   }
   .push-modal-overlay.show{display:flex;}
-  #moveModalOverlay, #taskDetailModalOverlay{z-index:7010;}
+  #moveModalOverlay{z-index:7010;}
   .peek-modal-card{max-height:80vh;overflow-y:auto;}
+
+  /* ---- Full-page modal (My Tasks peek) ---- */
+  .fullpage-modal-overlay{
+    display:none;position:fixed;inset:0;z-index:7500;
+    background:var(--paper);overflow-y:auto;
+  }
+  .fullpage-modal-overlay.show{display:block;}
+  .fullpage-modal-inner{
+    max-width:640px;margin:0 auto;position:relative;
+    padding:calc(24px + env(safe-area-inset-top)) 18px calc(28px + env(safe-area-inset-bottom));
+  }
+  .fullpage-modal-close{
+    position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;
+    width:34px;height:34px;border-radius:50%;
+    background:#fff;border:1px solid var(--border);
+    font-size:15px;color:var(--ink);cursor:pointer;
+  }
+  .fullpage-modal-close:hover{border-color:var(--navy-light);}
+  .fullpage-modal-inner .push-modal-title{margin-bottom:16px;padding-right:40px;}
   .push-modal-card{
     background:#fff;border-radius:16px;padding:24px;max-width:380px;width:100%;
     box-shadow:0 20px 60px rgba(0,0,0,.3);
@@ -803,7 +825,7 @@
     #view-today .win-textarea{font-size:15px;min-height:70px;}
     #view-today .day-meal-table{font-size:14px;}
     #view-today .day-meal-table td.day-meal-label{font-size:12px;width:84px;}
-    #view-today .day-meal-table textarea{font-size:14px;min-height:44px;}
+    #view-today .day-meal-table textarea{font-size:14px;min-height:52px;}
     #view-today .stat-card-label{font-size:13px;}
     #view-today .water-count-big{font-size:30px;}
     #view-today .stat-round-btn{width:42px;height:42px;font-size:20px;}
@@ -852,15 +874,15 @@
   }
 
   /* Day view's single-day meal table (mirrors the week table, one column) */
-  .day-meal-table{width:100%;border-collapse:collapse;font-size:12px;}
-  .day-meal-table td{border:1px solid var(--border);padding:5px 7px;vertical-align:top;}
+  .day-meal-table{width:100%;border-collapse:collapse;font-size:13px;height:100%;}
+  .day-meal-table td{border:1px solid var(--border);padding:8px 9px;vertical-align:top;}
   .day-meal-table td.day-meal-label{
-    background:#F5F4F1;font-weight:700;font-size:10.5px;text-transform:uppercase;
-    color:var(--muted);width:70px;vertical-align:middle;
+    background:#F5F4F1;font-weight:700;font-size:11px;text-transform:uppercase;
+    color:var(--muted);width:74px;vertical-align:middle;
   }
   .day-meal-table textarea{
-    width:100%;border:none;background:transparent;font-family:inherit;
-    font-size:12.5px;resize:vertical;min-height:34px;line-height:1.35;color:var(--ink);
+    width:100%;height:100%;border:none;background:transparent;font-family:inherit;
+    font-size:13.5px;resize:vertical;min-height:48px;line-height:1.4;color:var(--ink);
   }
   .day-meal-table textarea:focus{outline:none;background:#FBFBF9;}
 </style>
@@ -944,6 +966,21 @@
     <div class="push-modal-actions">
       <button class="push-modal-cancel" id="peekWeekCloseBtn">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- MY TASKS PEEK MODAL (full-page, either direction) -->
+<div class="fullpage-modal-overlay" id="myTasksPeekModalOverlay">
+  <div class="fullpage-modal-inner">
+    <button class="fullpage-modal-close" id="myTasksPeekCloseBtn" aria-label="Close">✕</button>
+    <div class="push-modal-title" id="myTasksPeekTitle">Tasks</div>
+    <div class="my-tasks-table-wrap">
+      <table class="my-tasks-table" id="myTasksPeekTable">
+        <thead><tr><th></th><th>Task</th><th>Status</th><th>Project</th><th>Due</th></tr></thead>
+        <tbody id="myTasksPeekBody"></tbody>
+      </table>
+    </div>
+    <div class="my-tasks-pagination" id="myTasksPeekPagination"></div>
   </div>
 </div>
 
@@ -1113,7 +1150,13 @@
           </div>
         </div>
       </div>
+    </div>
 
+    <!-- HABITS & DAILY WIN -->
+    <div class="card">
+      <div class="card-title-row">
+        <div class="card-title" style="font-size:19px;">Habits &amp; Daily Win</div>
+      </div>
       <div class="section-bar">Habits</div>
       <div class="today-toggles">
         <div class="toggle-item" id="toggle-workout"><div class="chk" id="chk-workout"></div> workout<span class="habit-streak" id="streak-workout"></span></div>
@@ -1122,9 +1165,16 @@
         <div class="toggle-item" id="toggle-joy"><div class="chk" id="chk-joy"></div> spark of joy<span class="habit-streak" id="streak-joy"></span></div>
       </div>
 
-      <div class="section-bar role-ashley-only">Today's Meals</div>
+      <div class="section-bar maroon">Daily Win</div>
+      <textarea class="win-textarea" id="dailyWin" placeholder="One line. What actually happened today?"></textarea>
+    </div>
 
-      <div class="meals-layout role-ashley-only">
+    <!-- TODAY'S MEALS -->
+    <div class="card role-ashley-only">
+      <div class="card-title-row">
+        <div class="card-title" style="font-size:19px;">Today's Meals</div>
+      </div>
+      <div class="meals-layout">
         <div>
           <div id="dayMealsTable"></div>
         </div>
@@ -1163,9 +1213,6 @@
           </div>
         </div>
       </div>
-
-      <div class="section-bar maroon">Daily Win</div>
-      <textarea class="win-textarea" id="dailyWin" placeholder="One line. What actually happened today?"></textarea>
     </div>
 
     <!-- Weekend template -->
@@ -1554,7 +1601,6 @@
       <div class="view-as-row role-david-only">
         <button class="view-as-david-btn" id="viewAshleyTasksTableBtn">View Ashley's Tasks</button>
       </div>
-      <div id="myTasksTableLabel" class="rest-hint" style="margin-bottom:6px;"></div>
       <div class="my-tasks-table-wrap">
         <table class="my-tasks-table" id="myTasksTable">
           <thead><tr><th></th><th>Task</th><th>Status</th><th>Project</th><th>Due</th></tr></thead>
@@ -2032,7 +2078,7 @@ async function importAllData(file){
 const HUBSPOT_OWNER_ID = '535583785';
 const HUBSPOT_COMPANY_ID = '55033489750';
 const PUSH_PROJECT_OPTIONS = [
-  'Personal', 'Church',
+  'Personal', 'Church', 'Home',
   'Client > Stevie Social', 'Client > Epicosity', 'Client > Fidelity Roofing',
   'Client > Lemuel Garcia', 'Client > Abel Brito'
 ];
@@ -2880,8 +2926,9 @@ async function init(){
   document.getElementById('viewDavidWeekBtn').onclick=()=>openPeekWeekModal('david');
   document.getElementById('viewAshleyWeekBtn').onclick=()=>openPeekWeekModal('ashley');
   document.getElementById('peekWeekCloseBtn').onclick=()=>closePeekWeekModal();
-  document.getElementById('viewDavidTasksTableBtn').onclick=()=>toggleMyTasksView('david');
-  document.getElementById('viewAshleyTasksTableBtn').onclick=()=>toggleMyTasksView('ashley');
+  document.getElementById('viewDavidTasksTableBtn').onclick=()=>openMyTasksPeekModal('david');
+  document.getElementById('viewAshleyTasksTableBtn').onclick=()=>openMyTasksPeekModal('ashley');
+  document.getElementById('myTasksPeekCloseBtn').onclick=()=>closeMyTasksPeekModal();
 
   document.getElementById('searchBtn').onclick=()=>{ closeDrawer(); openSearchModal(); };
   document.getElementById('searchModalCancelBtn').onclick=()=>closeSearchModal();
@@ -3407,7 +3454,7 @@ function renderHubspotTasksList(){
 
   if((!tasks || tasks.length===0) && overdue.length===0){
     const hint=document.createElement('div'); hint.className='empty-hint';
-    hint.textContent = tasks===null ? 'Loading…' : 'No HubSpot tasks due today.';
+    hint.textContent = tasks===null ? 'Loading…' : 'No tasks due today.';
     container.appendChild(hint);
     return;
   }
@@ -4288,13 +4335,12 @@ function renderEditableList(elId, key){
 /* ================= MY TASKS (Quarter tab) =================
    Full HubSpot task list (no date range), shared by both roles. Not
    date-scoped like Day/Week, so it doesn't need to reload on quarter
-   navigation — just once at init, and again whenever the view-as toggle
-   flips. Sorted open-first server-side; toggling a checkbox re-sorts and
-   re-renders client-side so a completed task drops to the bottom. */
+   navigation — just once at init. Sorted open-first server-side; toggling
+   a checkbox re-sorts and re-renders client-side so a completed task drops
+   to the bottom. */
 const MY_TASKS_PAGE_SIZE = 10;
 let myTasksCache = null;
 let myTasksPage = 1;
-let myTasksViewingRole = null; // null = own tasks, 'david'|'ashley' = peeking
 
 async function loadMyTasksTable(){
   myTasksCache = null;
@@ -4309,12 +4355,7 @@ async function loadMyTasksTable(){
 
   try{
     const { data, error } = await sb.functions.invoke('hubspot-tasks', {
-      body: {
-        action:'listAll',
-        viewAs: myTasksViewingRole || undefined,
-        quarterStart: isoDate(qStart),
-        quarterEnd: isoDate(qEnd),
-      }
+      body: { action:'listAll', quarterStart: isoDate(qStart), quarterEnd: isoDate(qEnd) }
     });
     if(error || (data && data.error) || !Array.isArray(data)) throw error || new Error((data&&data.error)||'Unexpected response');
     myTasksCache = data;
@@ -4325,90 +4366,125 @@ async function loadMyTasksTable(){
   renderMyTasksTable();
 }
 
-function updateMyTasksViewButtons(){
-  const davidBtn = document.getElementById('viewDavidTasksTableBtn');
-  if(davidBtn){
-    davidBtn.textContent = myTasksViewingRole==='david' ? '← Back to My Tasks' : "View David's Tasks";
-    davidBtn.classList.toggle('active', myTasksViewingRole==='david');
-  }
-  const ashleyBtn = document.getElementById('viewAshleyTasksTableBtn');
-  if(ashleyBtn){
-    ashleyBtn.textContent = myTasksViewingRole==='ashley' ? '← Back to My Tasks' : "View Ashley's Tasks";
-    ashleyBtn.classList.toggle('active', myTasksViewingRole==='ashley');
-  }
-  const labelEl = document.getElementById('myTasksTableLabel');
-  if(labelEl){
-    labelEl.textContent = myTasksViewingRole==='david' ? "Showing David's tasks."
-      : myTasksViewingRole==='ashley' ? "Showing Ashley's tasks." : '';
-  }
-}
-async function toggleMyTasksView(targetRole){
-  myTasksViewingRole = (myTasksViewingRole===targetRole) ? null : targetRole;
-  updateMyTasksViewButtons();
-  await loadMyTasksTable();
+/* Shared by the main table (own tasks) and the full-page peek modal
+   (the other person's tasks) — builds one <tr>, wiring the checkbox to
+   whichever cache/viewAsRole/re-render callback the caller supplies. */
+function buildMyTaskRow(t, cache, viewAsRole, rerender){
+  const tr = document.createElement('tr');
+  if(t.done) tr.classList.add('mt-done');
+
+  const chkTd = document.createElement('td'); chkTd.className = 'mt-chk-cell';
+  const chk = document.createElement('div'); chk.className = 'chk'+(t.done?' checked':''); chk.style.cursor='pointer';
+  chk.onclick = async ()=>{
+    if(!t.id) return;
+    const newDone = !t.done;
+    chk.className = 'chk'+(newDone?' checked':'');
+    tr.classList.toggle('mt-done', newDone);
+    const ok = await updateHubspotTaskStatus(t.id, newDone, viewAsRole);
+    if(ok){
+      t.done = newDone;
+      cache.sort((a,b)=> (a.done===b.done) ? 0 : (a.done ? 1 : -1));
+      rerender();
+    }else{
+      chk.className = 'chk'+(t.done?' checked':'');
+      tr.classList.toggle('mt-done', t.done);
+      alert('Could not update this task in HubSpot.');
+    }
+  };
+  chkTd.appendChild(chk); tr.appendChild(chkTd);
+
+  const subjectTd = document.createElement('td'); subjectTd.textContent = t.subject || 'Untitled task'; tr.appendChild(subjectTd);
+  const statusTd = document.createElement('td'); statusTd.textContent = t.status || '—'; tr.appendChild(statusTd);
+  const pcTd = document.createElement('td'); pcTd.textContent = t.projectClient || '—'; tr.appendChild(pcTd);
+  const dueTd = document.createElement('td');
+  dueTd.textContent = t.dueIso ? fmtShort(new Date(t.dueIso+'T00:00:00')) : '—';
+  tr.appendChild(dueTd);
+
+  return tr;
 }
 
-function renderMyTasksTable(){
-  const tbody = document.getElementById('myTasksBody');
-  const pagEl = document.getElementById('myTasksPagination');
+/* Shared paginated-table renderer — fills tbody/pagination for whichever
+   cache is passed in. onPageChange updates the caller's own page variable
+   and re-invokes its render function (so main table and peek modal each
+   keep independent page state). */
+function renderMyTasksPaged(cache, page, tbodyId, paginationId, viewAsRole, onPageChange, rerender){
+  const tbody = document.getElementById(tbodyId);
+  const pagEl = document.getElementById(paginationId);
+  if(!tbody) return;
   tbody.innerHTML = '';
   pagEl.innerHTML = '';
 
-  if(myTasksCache===null || myTasksCache.length===0){
+  if(cache===null || cache.length===0){
     const tr = document.createElement('tr');
     const td = document.createElement('td'); td.colSpan = 5; td.className = 'my-tasks-empty';
-    td.textContent = myTasksCache===null ? 'Loading…' : 'No tasks found.';
+    td.textContent = cache===null ? 'Loading…' : 'No tasks found.';
     tr.appendChild(td); tbody.appendChild(tr);
     return;
   }
 
-  const totalPages = Math.max(1, Math.ceil(myTasksCache.length / MY_TASKS_PAGE_SIZE));
-  if(myTasksPage > totalPages) myTasksPage = totalPages;
-  const startIdx = (myTasksPage-1) * MY_TASKS_PAGE_SIZE;
-  const pageItems = myTasksCache.slice(startIdx, startIdx + MY_TASKS_PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(cache.length / MY_TASKS_PAGE_SIZE));
+  if(page > totalPages) page = totalPages;
+  const startIdx = (page-1) * MY_TASKS_PAGE_SIZE;
+  const pageItems = cache.slice(startIdx, startIdx + MY_TASKS_PAGE_SIZE);
 
-  pageItems.forEach(t=>{
-    const tr = document.createElement('tr');
-    if(t.done) tr.classList.add('mt-done');
-
-    const chkTd = document.createElement('td'); chkTd.className = 'mt-chk-cell';
-    const chk = document.createElement('div'); chk.className = 'chk'+(t.done?' checked':''); chk.style.cursor='pointer';
-    chk.onclick = async ()=>{
-      if(!t.id) return;
-      const newDone = !t.done;
-      chk.className = 'chk'+(newDone?' checked':'');
-      tr.classList.toggle('mt-done', newDone);
-      const ok = await updateHubspotTaskStatus(t.id, newDone, myTasksViewingRole);
-      if(ok){
-        t.done = newDone;
-        myTasksCache.sort((a,b)=> (a.done===b.done) ? 0 : (a.done ? 1 : -1));
-        renderMyTasksTable();
-      }else{
-        chk.className = 'chk'+(t.done?' checked':'');
-        tr.classList.toggle('mt-done', t.done);
-        alert('Could not update this task in HubSpot.');
-      }
-    };
-    chkTd.appendChild(chk); tr.appendChild(chkTd);
-
-    const subjectTd = document.createElement('td'); subjectTd.textContent = t.subject || 'Untitled task'; tr.appendChild(subjectTd);
-    const statusTd = document.createElement('td'); statusTd.textContent = t.status || '—'; tr.appendChild(statusTd);
-    const pcTd = document.createElement('td'); pcTd.textContent = t.projectClient || '—'; tr.appendChild(pcTd);
-    const dueTd = document.createElement('td');
-    dueTd.textContent = t.dueIso ? fmtShort(new Date(t.dueIso+'T00:00:00')) : '—';
-    tr.appendChild(dueTd);
-
-    tbody.appendChild(tr);
-  });
+  pageItems.forEach(t=> tbody.appendChild(buildMyTaskRow(t, cache, viewAsRole, rerender)));
 
   if(totalPages > 1){
-    const prevBtn = document.createElement('button'); prevBtn.textContent = '‹ Prev'; prevBtn.disabled = myTasksPage<=1;
-    prevBtn.onclick = ()=>{ myTasksPage--; renderMyTasksTable(); };
-    const label = document.createElement('span'); label.textContent = `Page ${myTasksPage} of ${totalPages}`;
-    const nextBtn = document.createElement('button'); nextBtn.textContent = 'Next ›'; nextBtn.disabled = myTasksPage>=totalPages;
-    nextBtn.onclick = ()=>{ myTasksPage++; renderMyTasksTable(); };
+    const prevBtn = document.createElement('button'); prevBtn.textContent = '‹ Prev'; prevBtn.disabled = page<=1;
+    prevBtn.onclick = ()=> onPageChange(page-1);
+    const label = document.createElement('span'); label.textContent = `Page ${page} of ${totalPages}`;
+    const nextBtn = document.createElement('button'); nextBtn.textContent = 'Next ›'; nextBtn.disabled = page>=totalPages;
+    nextBtn.onclick = ()=> onPageChange(page+1);
     pagEl.appendChild(prevBtn); pagEl.appendChild(label); pagEl.appendChild(nextBtn);
   }
+}
+
+function renderMyTasksTable(){
+  renderMyTasksPaged(myTasksCache, myTasksPage, 'myTasksBody', 'myTasksPagination', null,
+    (newPage)=>{ myTasksPage = newPage; renderMyTasksTable(); },
+    renderMyTasksTable);
+}
+
+/* ---------------- My Tasks peek modal (Quarter tab) ----------------
+   Full-page rather than a centered dialog — this table can run to several
+   pages, so it gets its own screen with an X close in the corner instead
+   of being squeezed into a small card. Scoped to the same quarter as the
+   main table. */
+let peekMyTasksCache = null;
+let peekMyTasksPage = 1;
+let peekMyTasksTargetRole = null; // 'david' | 'ashley'
+
+async function openMyTasksPeekModal(targetRole){
+  peekMyTasksTargetRole = targetRole;
+  document.getElementById('myTasksPeekTitle').textContent = targetRole==='david' ? "David's Tasks" : "Ashley's Tasks";
+  document.getElementById('myTasksPeekModalOverlay').classList.add('show');
+  peekMyTasksCache = null;
+  peekMyTasksPage = 1;
+  renderMyTasksPeekTable(); // shows "Loading…" immediately
+
+  const { qNum, year } = calendarQuarterOf(quarterViewDate);
+  const qStart = new Date(year, (qNum-1)*3, 1);
+  const qEnd = new Date(year, qNum*3, 0);
+
+  try{
+    const { data, error } = await sb.functions.invoke('hubspot-tasks', {
+      body: { action:'listAll', viewAs: targetRole, quarterStart: isoDate(qStart), quarterEnd: isoDate(qEnd) }
+    });
+    if(error || (data && data.error) || !Array.isArray(data)) throw error || new Error((data&&data.error)||'Unexpected response');
+    peekMyTasksCache = data;
+  }catch(e){
+    console.error('Failed to load peek My Tasks', e);
+    peekMyTasksCache = [];
+  }
+  renderMyTasksPeekTable();
+}
+function closeMyTasksPeekModal(){
+  document.getElementById('myTasksPeekModalOverlay').classList.remove('show');
+}
+function renderMyTasksPeekTable(){
+  renderMyTasksPaged(peekMyTasksCache, peekMyTasksPage, 'myTasksPeekBody', 'myTasksPeekPagination', peekMyTasksTargetRole,
+    (newPage)=>{ peekMyTasksPage = newPage; renderMyTasksPeekTable(); },
+    renderMyTasksPeekTable);
 }
 
 initAuth();
