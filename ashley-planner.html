@@ -1153,7 +1153,7 @@
     </div>
 
     <!-- HABITS & DAILY WIN -->
-    <div class="card">
+    <div class="card" id="habitsWinCard">
       <div class="card-title-row">
         <div class="card-title" style="font-size:19px;">Habits &amp; Daily Win</div>
       </div>
@@ -1170,7 +1170,7 @@
     </div>
 
     <!-- TODAY'S MEALS -->
-    <div class="card role-ashley-only">
+    <div class="card role-ashley-only" id="todayMealsCard">
       <div class="card-title-row">
         <div class="card-title" style="font-size:19px;">Today's Meals</div>
       </div>
@@ -3233,6 +3233,11 @@ function renderDay(){
   const weekend = (currentRole !== 'david') && isWeekendDate(selectedDate);
   document.getElementById('weekdayCard').style.display = weekend ? 'none' : 'block';
   document.getElementById('weekendCard').style.display = weekend ? 'block' : 'none';
+  // These two were split out of weekdayCard into their own collapsible
+  // cards, but they're still weekday-only content — the weekend template
+  // has its own Habits/Meals/Daily Win sections built in.
+  document.getElementById('habitsWinCard').style.display = weekend ? 'none' : 'block';
+  document.getElementById('todayMealsCard').style.display = weekend ? 'none' : 'block';
 
   if(weekend){ renderWeekendDay(); } else { renderWeekdayDay(); }
 }
