@@ -1232,6 +1232,7 @@
       <div class="col2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div>
           <div class="col-head navy2">A few things</div>
+          <div class="col-sub">What needs to get done today?</div>
           <div id="fewThingsList"></div>
           <div class="add-row"><button class="add-btn" id="addFewThingBtn">+ add</button></div>
         </div>
@@ -3005,6 +3006,11 @@ async function loadDay(){
     }
     autoSyncHubspot(iso);
     autoSyncOverdue(iso);
+  }else{
+    // Weekend (Ashley only — David never reaches this branch). "Today's
+    // Shape" and the overdue tag are weekday-only UI, but "A few things"
+    // now also shows synced HubSpot tasks, so it needs the same sync.
+    autoSyncHubspot(iso);
   }
 }
 async function autoSyncCalendar(iso){
@@ -3025,7 +3031,8 @@ async function autoSyncHubspot(iso){
     dayData.hubspotTasks = tasks;
     saveDayDebounced();
   }
-  renderHubspotTasksList();
+  const weekend = (currentRole !== 'david') && isWeekendDate(selectedDate);
+  if(weekend){ renderFewThingsList(); } else { renderHubspotTasksList(); }
 }
 async function loadWeek(){
   const iso = isoDate(weekViewDate);
@@ -3453,6 +3460,7 @@ async function submitMoveModal(){
 
 function renderHubspotTasksList(){
   const container = document.getElementById('hubspotTasksList');
+  if(!container) return; // weekend view uses renderFewThingsList() instead
   container.innerHTML='';
   const tasks = dayData.hubspotTasks;
   const overdue = dayOverdueTasks || [];
@@ -3728,6 +3736,82 @@ function renderWeekdayDay(){
   winEl.oninput=()=>{ dayData.win = winEl.value; saveDayDebounced(); };
 }
 
+/* "A few things" (weekend) — a compact merge of two sources into one list:
+   1. HubSpot tasks already synced for this date (same tap-to-move behavior
+      as weekday's Planned Tasks — see openMoveModal).
+   2. The freeform quick-notes list, each with the same "→ Push" capability
+      weekday's New Tasks has, so a quick note can become a real HubSpot
+      task without retyping it elsewhere.
+   Deliberately one merged list rather than two sections, to keep the
+   weekend view trimmed. */
+function renderFewThingsList(){
+  const ft = document.getElementById('fewThingsList');
+  if(!ft) return;
+  ft.innerHTML='';
+
+  const synced = dayData.hubspotTasks;
+  (synced||[]).forEach(t=>{
+    const isDone = taskIsDone(t);
+    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #EFEFEC;';
+    const chk=document.createElement('div'); chk.className='chk'+(isDone?' checked':''); chk.style.cursor='pointer';
+    const label=document.createElement('span'); label.style.cssText='flex:1;font-size:13.5px;color:var(--ink);cursor:pointer;';
+    label.textContent = t.subject||'Untitled task';
+    if(isDone){ label.style.color='var(--muted)'; label.style.opacity='0.75'; }
+    label.onclick = ()=>openMoveModal(t, t.dueIso || isoDate(selectedDate), null, ()=>{
+      const idx = (dayData.hubspotTasks||[]).indexOf(t);
+      if(idx>-1) dayData.hubspotTasks.splice(idx,1);
+      saveDayDebounced();
+      renderFewThingsList();
+    });
+
+    const applyDoneStyle = (done)=>{
+      chk.className = 'chk'+(done?' checked':'');
+      label.style.color = done?'var(--muted)':'';
+      label.style.opacity = done?'0.75':'1';
+    };
+    chk.onclick = async ()=>{
+      if(!t.id){ alert('Can\'t update this task — tap Sync to refresh, then try again.'); return; }
+      const newDone = !taskIsDone(t);
+      applyDoneStyle(newDone);
+      chk.style.opacity = '0.6';
+      const ok = await updateHubspotTaskStatus(t.id, newDone);
+      chk.style.opacity = '1';
+      if(ok){ t.done = newDone; saveDayDebounced(); }
+      else{ applyDoneStyle(taskIsDone(t)); alert('Could not update this task in HubSpot. Check your connection and try again.'); }
+    };
+
+    row.appendChild(chk); row.appendChild(label);
+    ft.appendChild(row);
+  });
+
+  dayData.fewThings.forEach((t,i)=>{
+    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #EFEFEC;';
+    const chk=document.createElement('div'); chk.className='chk'+(t.done?' checked':'');
+    chk.onclick=()=>{ t.done=!t.done; renderFewThingsList(); saveDayDebounced(); };
+    const inp=document.createElement('input'); inp.type='text'; inp.value=t.text; inp.placeholder='…';
+    if(t.done) inp.classList.add('done');
+    inp.oninput=()=>{ t.text=inp.value; saveDayDebounced(); };
+    const hbBtn=document.createElement('button'); hbBtn.className='hb-btn small'+(t.hubspot?' hb-sent':'');
+    hbBtn.textContent = t.hubspot ? '✓' : '→ Push';
+    if(t.hubspot) hbBtn.disabled=true;
+    hbBtn.onclick=()=>{
+      openPushModal(t.text, hbBtn, ()=>{
+        dayData.fewThings.splice(i,1); // pushed successfully — remove so it's not duplicated as a synced task too
+        renderFewThingsList();
+        saveDayDebounced();
+      });
+    };
+    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
+    del.onclick=()=>{ dayData.fewThings.splice(i,1); renderFewThingsList(); saveDayDebounced(); };
+    row.appendChild(chk); row.appendChild(inp); row.appendChild(hbBtn); row.appendChild(del);
+    ft.appendChild(row);
+  });
+
+  document.getElementById('addFewThingBtn').onclick=()=>{
+    dayData.fewThings.push({text:'',done:false,hubspot:false}); renderFewThingsList(); saveDayDebounced();
+  };
+}
+
 function renderWeekendDay(){
   document.getElementById('weekendDayName').textContent = dayTitleFor(selectedDate);
 
@@ -3744,23 +3828,7 @@ function renderWeekendDay(){
   intentEl.value = dayData.intention||'';
   intentEl.oninput=()=>{ dayData.intention=intentEl.value; saveDayDebounced(); };
 
-  const ft = document.getElementById('fewThingsList'); ft.innerHTML='';
-  dayData.fewThings.forEach((t,i)=>{
-    const li=document.createElement('div'); li.className='col-check-list';
-    const row=document.createElement('div'); row.style.cssText='display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #EFEFEC;';
-    const chk=document.createElement('div'); chk.className='chk'+(t.done?' checked':'');
-    chk.onclick=()=>{ t.done=!t.done; renderWeekendDay(); saveDayDebounced(); };
-    const inp=document.createElement('input'); inp.type='text'; inp.value=t.text; inp.placeholder='…';
-    if(t.done) inp.classList.add('done');
-    inp.oninput=()=>{ t.text=inp.value; saveDayDebounced(); };
-    const del=document.createElement('button'); del.className='del-btn'; del.textContent='✕';
-    del.onclick=()=>{ dayData.fewThings.splice(i,1); renderWeekendDay(); saveDayDebounced(); };
-    row.appendChild(chk); row.appendChild(inp); row.appendChild(del);
-    ft.appendChild(row);
-  });
-  document.getElementById('addFewThingBtn').onclick=()=>{
-    dayData.fewThings.push({text:'',done:false}); renderWeekendDay(); saveDayDebounced();
-  };
+  renderFewThingsList();
 
   const rr = document.getElementById('restRestoreList'); rr.innerHTML='';
   dayData.restRestore.forEach((t,i)=>{
