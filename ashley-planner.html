@@ -2855,12 +2855,13 @@ const saveMonthDebounced = debounce(()=>sset(currentMonthKey, monthData), 500);
 async function init(){
   quarterData = (await sget(TODAY_QUARTER_KEY)) || loadQuarterData(TODAY_QNUM_YEAR.qNum, TODAY_QNUM_YEAR.year);
   renderPulse();
-  await rescanQuarterCounts(); // one full pass over today's real quarter — everything after this is incremental
 
+  // Only the Day tab — the screen actually visible on load — blocks the
+  // loading overlay. Week/Month/Quarter/My Tasks and the one-time quarter
+  // rest-day scan all load afterward, in the background, so the first
+  // screen appears as fast as possible instead of waiting on every tab's
+  // data before showing anything.
   await loadDay();
-  await loadWeek();
-  await loadMonthTab();
-  await loadQuarterTab();
 
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -2936,6 +2937,16 @@ async function init(){
   document.getElementById('searchInput').oninput=()=>runSearchDebounced();
 
   initCardCollapsers();
+
+  // Background: Week/Month/Quarter/My Tasks load after the Day tab is
+  // already interactive and the loading overlay is already gone. Sequential
+  // rather than parallel so they don't all hit Supabase/HubSpot at once.
+  (async()=>{
+    await rescanQuarterCounts(); // one full pass over today's real quarter — everything after this is incremental
+    await loadWeek();
+    await loadMonthTab();
+    await loadQuarterTab();
+  })();
 }
 function openDrawer(){
   document.getElementById('sideDrawer').classList.add('open');
