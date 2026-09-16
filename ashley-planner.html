@@ -3035,9 +3035,12 @@ async function autoSyncCalendar(iso){
   }
   renderCalendarTimeline();
 }
+let hubspotSyncToken = 0; // same double-call race as overdueSyncToken — see autoSyncOverdue's note
 async function autoSyncHubspot(iso){
+  const myToken = ++hubspotSyncToken;
   const tasks = await syncHubspotTasks(iso, null);
   if(isoDate(selectedDate) !== iso) return; // navigated away before this resolved
+  if(myToken !== hubspotSyncToken) return; // superseded by a newer call for the same date — discard
   if(tasks !== null){
     dayData.hubspotTasks = tasks;
     saveDayDebounced();
@@ -3547,10 +3550,18 @@ function renderHubspotTasksList(){
    Only fetched/shown when browsing today itself — "overdue" isn't a
    meaningful concept relative to some other day you're just browsing. */
 let dayOverdueTasks = null;
+let overdueSyncToken = 0; // guards against a stale/duplicate call overwriting a newer one — see note below
 async function autoSyncOverdue(iso){
+  // initAuth() calls handleSession() once directly AND via onAuthStateChange,
+  // which Supabase reliably fires again right after (often with an
+  // INITIAL_SESSION event) -- so this can genuinely run twice, concurrently,
+  // on a normal page load. Without this token, whichever call happened to
+  // resolve *last* would win, even if it was the stale one or one that
+  // errored — which is exactly what made overdue tasks show "intermittently".
+  const myToken = ++overdueSyncToken;
   if(iso !== isoDate(TODAY)){
     dayOverdueTasks = [];
-    renderHubspotTasksList();
+    if(myToken === overdueSyncToken) renderHubspotTasksList();
     return;
   }
   try{
@@ -3558,9 +3569,11 @@ async function autoSyncOverdue(iso){
       body: { action:'overdue', beforeIso: iso }
     });
     if(error || (data && data.error) || !Array.isArray(data)) throw error || new Error((data&&data.error)||'Unexpected response');
+    if(myToken !== overdueSyncToken) return; // superseded by a newer call — discard this result
     dayOverdueTasks = data;
   }catch(e){
     console.error('Failed to load overdue tasks', e);
+    if(myToken !== overdueSyncToken) return;
     dayOverdueTasks = [];
   }
   renderHubspotTasksList();
