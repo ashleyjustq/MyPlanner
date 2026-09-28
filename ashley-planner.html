@@ -2473,8 +2473,11 @@ function quarterBoundsFromLabel(qLabel, yearLabel){
   const qNum = parseInt(String(qLabel||'Q3').replace(/[^0-9]/g,''),10) || 3;
   const year = parseInt(yearLabel,10) || 2026;
   const qStartMonth = (Math.min(Math.max(qNum,1),4)-1)*3;
-  const start = new Date(year, qStartMonth, 1);
-  const end   = new Date(year, qStartMonth+3, 0);
+  // Planner-week bounds: Monday of the week containing the 1st, through the
+  // Sunday before the next quarter's anchor Monday (matches the week bar).
+  const start = mondayOfWeek(new Date(year, qStartMonth, 1));
+  const end   = mondayOfWeek(new Date(year, qStartMonth+3, 1));
+  end.setDate(end.getDate()-1);
   return { start: stripTime(start), end: stripTime(end) };
 }
 function isoWithinBounds(iso, bounds){
@@ -2488,7 +2491,11 @@ const TODAY = today();
 /* Quarter storage keys are computed from calendar quarter + year, so navigating
    into a new quarter automatically gets its own bucket with no manual setup. */
 function calendarQuarterOf(d){
-  return { qNum: Math.floor(d.getMonth()/3)+1, year: d.getFullYear() };
+  // Planner-aware: the quarter flips on the same anchor Monday as the week bar
+  // (e.g. Q4 2026 starts Mon Sep 28), so label, data and week count always agree.
+  const {anchor} = resolveQuarterAnchors(d);
+  const ref = new Date(anchor); ref.setDate(ref.getDate()+6); // Sunday of anchor week — always inside the quarter
+  return { qNum: Math.floor(ref.getMonth()/3)+1, year: ref.getFullYear() };
 }
 function quarterKeyFor(qNum, year){ return 'quarter-q'+qNum+'-'+year; }
 const TODAY_QNUM_YEAR = calendarQuarterOf(TODAY);
