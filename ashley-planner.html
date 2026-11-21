@@ -11,7 +11,7 @@
 <link rel="icon" type="image/png" href="icon.png">
 <title>JustQ Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Nunito+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root{
@@ -34,7 +34,7 @@
   *{box-sizing:border-box;}
   body{
     margin:0;
-    font-family:'Nunito Sans', -apple-system, sans-serif;
+    font-family:'Noto Sans', -apple-system, sans-serif;
     background:#F9F8FC;
     color:var(--ink);
     padding:0;
@@ -263,7 +263,7 @@
 
   /* Linger */
   .linger-list textarea{
-    width:100%;border:none;background:transparent;font-family:'Nunito Sans',sans-serif;
+    width:100%;border:none;background:transparent;font-family:'Noto Sans',sans-serif;
     font-style:italic;font-size:14.5px;color:var(--ink);resize:vertical;line-height:1.6;
     border-bottom:1px dashed var(--border);padding:8px 0;min-height:90px;
   }
@@ -901,15 +901,15 @@
     --sky-soft:#E6F6FC;
     --lav:#ECE6F2;
     --canvas:#F9F8FC;
-    --serif:'Cormorant Garamond', Georgia, serif;
-    --mono:'Roboto Mono', ui-monospace, monospace;
+    --serif:'Inter Variable','Inter', -apple-system, sans-serif;
+    --mono:'Inter Variable','Inter', -apple-system, sans-serif;
     --shadow-card:0 1px 2px rgba(50,40,70,.04), 0 10px 32px rgba(80,55,150,.07);
     --shadow-pop:0 24px 70px rgba(50,40,70,.22);
     --grad-violet:linear-gradient(135deg,#7A1FF0 0%,#5A0BC4 100%);
   }
   html{background:var(--canvas);}
   body{
-    font-family:'Nunito Sans', -apple-system, sans-serif;
+    font-family:'Noto Sans', -apple-system, sans-serif;
     background:var(--canvas);
     color:var(--ink);
   }
@@ -926,15 +926,14 @@
 
   /* ---- Display type ---- */
   .pulse-greeting,.card-title,.navbar-center>div,.push-modal-title,.auth-card h1,.drawer-header{
-    font-family:var(--serif);font-weight:600;letter-spacing:-.005em;
-    font-size-adjust:.46;color:var(--plum);
+    font-family:var(--serif);font-weight:650;letter-spacing:-.02em;color:var(--plum);
   }
   /* ---- Mono uppercase labels ---- */
   .tab-btn,.section-bar,.badge,.pulse-week-badge,.pulse-bar-label,.stat-card-label,
   .header-badge-label,.legend b,.water-label,.farm-table th,.my-tasks-table th,
   .meal-table th,.month-table th,.meal-table td.rowlabel,.day-meal-table td.day-meal-label,
   .push-field-label,.search-result-type,.month-table td.wk-cell{
-    font-family:var(--mono);letter-spacing:.06em;
+    font-family:var(--mono);font-weight:600;letter-spacing:.05em;
   }
 
   /* ---- Pulse / morning brief ---- */
@@ -949,7 +948,7 @@
     padding:22px 22px 20px;
     box-shadow:var(--shadow-card), inset 0 1px 16px rgba(255,255,255,.64);
   }
-  .pulse-greeting{font-size:30px;line-height:1.1;}
+  .pulse-greeting{font-size:26px;line-height:1.15;}
   .pulse-date{color:var(--muted);opacity:1;font-size:13px;margin-top:4px;}
   .pulse-week-badge{
     background:rgba(255,255,255,.7);border:1px solid var(--lav);color:var(--violet);
@@ -957,7 +956,7 @@
     backdrop-filter:blur(6px);
   }
   .pulse-linger{
-    font-family:var(--serif);font-size:18px;font-size-adjust:.46;line-height:1.45;
+    font-style:italic;font-size:15px;line-height:1.5;
     color:var(--plum);border-left:2px solid var(--violet);opacity:1;padding-left:12px;
   }
   .pulse-multiplier{color:var(--muted);opacity:1;}
@@ -974,7 +973,7 @@
   }
   .tab-btn{
     background:transparent;border:none;border-radius:999px;
-    font-size:12px;font-weight:500;text-transform:uppercase;color:var(--muted);padding:10px 6px;
+    font-size:12px;font-weight:600;text-transform:uppercase;color:var(--muted);padding:10px 6px;
   }
   .tab-btn:hover:not(.active){color:var(--violet);background:var(--violet-soft);}
   .tab-btn.active{background:var(--grad-violet);color:#fff;box-shadow:0 6px 18px rgba(104,13,219,.30), inset 0 1px 8px rgba(255,255,255,.25);}
@@ -996,12 +995,12 @@
 
   /* ---- Section bars → soft tinted pills ---- */
   .section-bar{
-    background:var(--violet-soft);color:var(--violet);font-weight:500;font-size:11.5px;
+    background:var(--violet-soft);color:var(--violet);font-weight:600;font-size:11.5px;
     border-radius:999px;padding:8px 16px;
   }
   .section-bar.teal{background:var(--sky-soft);color:#1E6A84;}
   .section-bar.maroon{background:#F6E9F1;color:#7A2E5C;}
-  .section-bar span.sub{font-family:'Nunito Sans',sans-serif;letter-spacing:0;opacity:.75;}
+  .section-bar span.sub{font-family:'Noto Sans',sans-serif;font-weight:400;letter-spacing:0;opacity:.75;}
 
   /* ---- Navbar ---- */
   .navbar{
@@ -1011,7 +1010,7 @@
   }
   .nav-arrow{border-color:var(--lav);color:var(--violet);background:#fff;}
   .nav-arrow:hover{background:var(--grad-violet);border-color:transparent;color:#fff;}
-  .jump-btn{color:var(--violet);text-decoration:none;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;}
+  .jump-btn{color:var(--violet);text-decoration:none;font-family:var(--mono);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
   .jump-btn:hover{text-decoration:underline;}
   .date-picker-input{border-color:var(--lav);border-radius:999px;padding:3px 10px;}
 
@@ -1062,7 +1061,7 @@
   .hamburger-btn{border-radius:999px;border-color:var(--lav);box-shadow:var(--shadow-card);}
   .hamburger-btn span{background:var(--violet);}
   .side-drawer{border-radius:0 28px 28px 0;box-shadow:var(--shadow-pop);}
-  .drawer-header{font-size:24px;}
+  .drawer-header{font-size:20px;}
   .drawer-item{border-radius:14px;}
   .drawer-item:hover,.drawer-close-btn:hover{background:var(--violet-soft);color:var(--violet);}
   .drawer-overlay{background:rgba(50,40,70,.28);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
@@ -1073,7 +1072,7 @@
   .fullpage-modal-overlay{background:var(--canvas);}
   .fullpage-modal-close{border-color:var(--lav);color:var(--violet);}
   .fullpage-modal-close:hover{border-color:var(--violet);}
-  .saved-note{background:var(--plum);border-radius:999px;font-family:var(--mono);font-size:11px;letter-spacing:.05em;text-transform:uppercase;}
+  .saved-note{background:var(--plum);border-radius:999px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;}
   .loading-overlay{background:rgba(50,40,70,.88);}
   .auth-gate{
     background:
@@ -1082,12 +1081,12 @@
       var(--canvas);
   }
   .auth-card{border-radius:28px;box-shadow:var(--shadow-pop);}
-  .auth-card h1{font-size:30px;}
+  .auth-card h1{font-size:24px;}
   .google-btn{border-radius:999px;}
   @media(max-width:640px){
     .pulse{padding:18px 18px 18px;border-radius:24px;}
     .pulse-top{padding-left:46px;}
-    .pulse-greeting{font-size:26px;}
+    .pulse-greeting{font-size:22px;}
     .tab-btn{font-size:11px;letter-spacing:.04em;}
   }
 </style>
