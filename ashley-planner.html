@@ -1090,6 +1090,33 @@
     .pulse-greeting{font-size:22px;}
     .tab-btn{font-size:11px;letter-spacing:.04em;}
   }
+  /* ---- Meds & Vitals ---- */
+  .meds-protocol-badge{background:#FFF1D6;color:#9A6400;border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:600;margin-right:34px;}
+  .meds-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:640px){.meds-grid{grid-template-columns:1fr;}}
+  .med-row{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);font-size:14.5px;}
+  .med-row:last-child{border-bottom:none;}
+  .med-row .chk{cursor:pointer;flex-shrink:0;width:22px;height:22px;}
+  .med-row .med-main{flex:1;min-width:0;}
+  .med-row .med-name{font-weight:600;}
+  .med-row .med-qty{color:var(--muted);margin-left:4px;}
+  .med-row .med-note{font-size:12px;color:#9A6400;margin-top:2px;}
+  .med-row .med-at{font-size:12px;color:var(--muted);white-space:nowrap;}
+  .med-row.taken .med-name{color:var(--muted);}
+  .med-row.overdue{background:#FFF7E8;border-radius:10px;}
+  .med-row.skipped .med-name{text-decoration:line-through;color:var(--muted);}
+  .med-skip{border:1px solid var(--border);background:#fff;border-radius:999px;font-size:11px;padding:3px 9px;color:var(--muted);cursor:pointer;}
+  .med-none{font-size:13px;color:var(--muted);padding:8px 4px;}
+  .vitals-row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:10px 0;}
+  .vitals-field{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .vitals-field input{width:74px;border:1.5px solid var(--border);border-radius:10px;padding:8px;font-family:inherit;font-size:16px;font-weight:600;text-align:center;background:#fff;}
+  .vitals-field input:focus{outline:none;border-color:var(--accent-ink);}
+  .vitals-slash{font-size:20px;color:var(--muted);padding-bottom:8px;}
+  .vitals-saved{font-size:12px;color:var(--muted);}
+  .meds-feel{width:100%;min-height:52px;border:1.5px solid var(--border);border-radius:12px;padding:10px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;}
+  .meds-source{margin-top:12px;font-size:13px;}
+  .meds-source summary{cursor:pointer;color:var(--accent-ink);font-weight:600;}
+  .meds-source pre{white-space:pre-wrap;font-family:inherit;background:#FAF9FC;border-radius:12px;padding:12px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -1301,6 +1328,15 @@
         </div>
       </div>
       <button class="nav-arrow" id="dayNext">›</button>
+    </div>
+
+    <!-- MEDS & MORNING VITALS (Ashley-only) -->
+    <div class="card role-ashley-only" id="medsCard">
+      <div class="card-title-row">
+        <div class="card-title" style="font-size:19px;">Meds &amp; Morning Vitals</div>
+        <span class="meds-protocol-badge" id="medsProtocolBadge" style="display:none;"></span>
+      </div>
+      <div id="medsBody"><div class="empty-hint">Loading…</div></div>
     </div>
 
     <!-- Weekday template -->
@@ -3473,6 +3509,7 @@ function renderDay(){
   document.getElementById('todayMealsCard').style.display = weekend ? 'none' : 'block';
 
   if(weekend){ renderWeekendDay(); } else { renderWeekdayDay(); }
+  renderMedsCard();
 }
 
 /* Formats "HH:MM" (24hr, as returned by the sync) into a compact 12hr label,
@@ -4819,6 +4856,180 @@ function initCardCollapsers(){
     };
     card.appendChild(btn); // appended to .card itself, not the title row — absolute positioning handles placement
   });
+}
+
+/* ================= MEDS & MORNING VITALS =================
+   Ashley-only. Displays ONLY what is entered here or in a doctor's protocol —
+   it never calculates doses. Storage (planner_data):
+     meds-YYYY-MM-DD  -> {doses:{<doseId>:{status:'taken'|'skipped', at:ISO}}, vitals:{sys,dia,pulse,glucose,at}, feel}
+   Regular schedule + protocols are defined below (MEDS_REGULAR / MEDS_PROTOCOLS). */
+const MEDS_REGULAR = [
+  {id:'hc-am',  med:'Hydrocortisone', qty:'2 tabs', slot:'AM'},
+  {id:'hc-pm',  med:'Hydrocortisone', qty:'1 tab',  slot:'PM'},
+  // every 48 hrs, anchored to a known dose date (confirm 11/29 with Dr. Bourne)
+  {id:'dex',    med:'Dexamethasone',  qty:'½ tab',  slot:'PM', everyDays:2, anchor:'2026-11-29'},
+  {id:'tirz',   med:'Tirzepatide',    qty:'weekly dose', slot:'AM', weekday:1}
+];
+const MEDS_PROTOCOLS = [
+  {
+    name:'Stress dose', start:'2026-11-23',
+    days:[
+      {'hc-am':'2 tabs','hc-pm':'2 tabs','dex':'½ tab'},
+      {'hc-am':'2 tabs','hc-pm':'2 tabs','dex':'½ tab'},
+      {'hc-am':'2 tabs','hc-pm':'2 tabs','dex':'½ tab'},
+      {'hc-am':'2 tabs','hc-pm':'1 tab'},
+      {'hc-am':'2 tabs','hc-pm':'1 tab','dex':'½ tab'}
+    ],
+    notes:{'2026-11-23':{'tirz':'Not covered in Dr. Bourne\'s message — confirm before taking'}},
+    source:'Sun, November 22, 2026 at 8:34 PM | Secure Message: Catrina Bourne, MD\n\nDouble her meds for the next 72 hours:\n2 tabs of hydrocotrisone twice daily and 1/2 tablet dexamethasone daily for next 3 days.\nThen:\nDay 4:\nHydrocortisone - 2 in am and 1 PM\nDexamethasone - none\n\nDay 5 :\nHydrocortisone - 2 AM and 1 PM\nDexamethasone - 1/2 tab\n\nDay 6 and beyond:\nBack to regular dosing'
+  }
+];
+const MEDS_SLOT_LATE = {AM:11, PM:22}; // hour after which an unchecked dose turns amber (today only)
+
+function medsDayDiff(isoA, isoB){
+  return Math.round((new Date(isoB+'T12:00:00') - new Date(isoA+'T12:00:00'))/86400000);
+}
+function medsActiveProtocol(iso){
+  for(const p of MEDS_PROTOCOLS){
+    const n = medsDayDiff(p.start, iso);
+    if(n>=0 && n<p.days.length) return {p, dayIdx:n};
+  }
+  return null;
+}
+function medsScheduleFor(iso){
+  const ap = medsActiveProtocol(iso);
+  const dow = new Date(iso+'T12:00:00').getDay();
+  const out = [];
+  MEDS_REGULAR.forEach(r=>{
+    let qty = null;
+    if(r.weekday!==undefined){ if(dow===r.weekday) qty = r.qty; }
+    else if(ap && (r.id==='hc-am'||r.id==='hc-pm'||r.id==='dex')){ qty = ap.p.days[ap.dayIdx][r.id] || null; }
+    else if(r.everyDays){ const d = medsDayDiff(r.anchor, iso); if(d>=0 && d % r.everyDays===0) qty = r.qty; }
+    else qty = r.qty;
+    if(!qty) return;
+    let note = '';
+    if(ap && ap.p.notes && ap.p.notes[iso] && ap.p.notes[iso][r.id]) note = ap.p.notes[iso][r.id];
+    if(r.id==='dex' && !ap && r.anchor===iso) note = 'First regular dose after protocol — confirm date with Dr. Bourne';
+    out.push({id:r.id, med:r.med, qty, slot:r.slot, note});
+  });
+  return {doses:out, ap};
+}
+let medsRec = null, medsIso = null;
+const _saveMedsDeb = debounce((iso,rec)=>{ sset('meds-'+iso, rec); }, 400);
+function saveMedsDebounced(){ if(medsIso && medsRec) _saveMedsDeb(medsIso, JSON.parse(JSON.stringify(medsRec))); }
+
+async function renderMedsCard(){
+  const card = document.getElementById('medsCard');
+  if(!card) return;
+  if(currentRole==='david'){ card.style.display='none'; return; }
+  card.style.display='block';
+  const iso = isoDate(selectedDate);
+  medsIso = iso;
+  const rec = (await sget('meds-'+iso)) || {};
+  if(medsIso!==iso) return; // user navigated away mid-load
+  medsRec = Object.assign({doses:{}, vitals:{}, feel:''}, rec);
+  drawMedsCard(iso);
+}
+
+function medsFmtAt(at){
+  if(!at) return '';
+  const d = new Date(at);
+  return formatTime12(String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'));
+}
+
+function drawMedsCard(iso){
+  const {doses, ap} = medsScheduleFor(iso);
+  const badge = document.getElementById('medsProtocolBadge');
+  if(ap){ badge.style.display='inline-block'; badge.textContent = ap.p.name+' · Day '+(ap.dayIdx+1)+' of '+ap.p.days.length; }
+  else badge.style.display='none';
+
+  const isToday = iso===isoDate(stripTime(new Date()));
+  const nowH = new Date().getHours();
+  const body = document.getElementById('medsBody');
+  body.innerHTML = '';
+
+  const grid = document.createElement('div'); grid.className='meds-grid';
+  ['AM','PM'].forEach(slot=>{
+    const col = document.createElement('div');
+    const bar = document.createElement('div'); bar.className='section-bar';
+    bar.textContent = slot==='AM' ? 'Morning' : 'Evening';
+    col.appendChild(bar);
+    const list = doses.filter(d=>d.slot===slot);
+    if(!list.length){ const n=document.createElement('div'); n.className='med-none'; n.textContent='Nothing scheduled'; col.appendChild(n); }
+    list.forEach(d=>{
+      const st = medsRec.doses[d.id] || null;
+      const row = document.createElement('div');
+      row.className = 'med-row' + (st&&st.status==='taken'?' taken':'') + (st&&st.status==='skipped'?' skipped':'');
+      if(!st && isToday && nowH>=MEDS_SLOT_LATE[slot]) row.className += ' overdue';
+      const chk = document.createElement('div');
+      chk.className = 'chk' + (st&&st.status==='taken'?' checked':'');
+      chk.onclick = ()=>{
+        if(st && st.status==='taken') delete medsRec.doses[d.id];
+        else medsRec.doses[d.id] = {status:'taken', at:new Date().toISOString(), qty:d.qty};
+        saveMedsDebounced(); drawMedsCard(iso);
+      };
+      const main = document.createElement('div'); main.className='med-main';
+      main.innerHTML = '<span class="med-name"></span><span class="med-qty"></span>';
+      main.querySelector('.med-name').textContent = d.med;
+      main.querySelector('.med-qty').textContent = '· '+d.qty;
+      if(d.note){ const n=document.createElement('div'); n.className='med-note'; n.textContent='⚠ '+d.note; main.appendChild(n); }
+      const right = document.createElement('div');
+      if(st && st.status==='taken'){ right.className='med-at'; right.textContent='✓ '+medsFmtAt(st.at); }
+      else if(st && st.status==='skipped'){
+        const b=document.createElement('button'); b.className='med-skip'; b.textContent='skipped · undo';
+        b.onclick=()=>{ delete medsRec.doses[d.id]; saveMedsDebounced(); drawMedsCard(iso); };
+        right.appendChild(b);
+      } else {
+        const b=document.createElement('button'); b.className='med-skip'; b.textContent='skip';
+        b.onclick=()=>{ medsRec.doses[d.id]={status:'skipped', at:new Date().toISOString(), qty:d.qty}; saveMedsDebounced(); drawMedsCard(iso); };
+        right.appendChild(b);
+      }
+      row.append(chk, main, right);
+      col.appendChild(row);
+    });
+    grid.appendChild(col);
+  });
+  body.appendChild(grid);
+
+  // Morning vitals
+  const vbar = document.createElement('div'); vbar.className='section-bar'; vbar.style.marginTop='14px';
+  vbar.textContent='Morning Vitals'; body.appendChild(vbar);
+  const v = medsRec.vitals || {};
+  const vr = document.createElement('div'); vr.className='vitals-row';
+  const field = (key,label,ph)=>{
+    const w=document.createElement('label'); w.className='vitals-field';
+    w.appendChild(document.createTextNode(label));
+    const i=document.createElement('input'); i.type='number'; i.inputMode='numeric'; i.placeholder=ph;
+    i.value = v[key] ?? '';
+    i.oninput=()=>{
+      medsRec.vitals = medsRec.vitals || {};
+      medsRec.vitals[key] = i.value==='' ? null : Number(i.value);
+      if(!medsRec.vitals.at) medsRec.vitals.at = new Date().toISOString();
+      saveMedsDebounced();
+      saved.textContent = 'saved';
+    };
+    w.appendChild(i); return w;
+  };
+  const saved = document.createElement('span'); saved.className='vitals-saved';
+  if(v.at) saved.textContent = 'logged '+medsFmtAt(v.at);
+  const slash=document.createElement('span'); slash.className='vitals-slash'; slash.textContent='/';
+  vr.append(field('sys','BP sys','120'), slash, field('dia','BP dia','80'), field('pulse','Pulse','70'), field('glucose','Glucose','mg/dL'), saved);
+  body.appendChild(vr);
+
+  // How I feel
+  const fbar = document.createElement('div'); fbar.className='section-bar'; fbar.textContent='How I feel'; body.appendChild(fbar);
+  const ta = document.createElement('textarea'); ta.className='meds-feel'; ta.style.marginTop='8px';
+  ta.placeholder = 'Energy, nausea, dizziness, anything to tell Dr. Bourne';
+  ta.value = medsRec.feel || '';
+  ta.oninput = ()=>{ medsRec.feel = ta.value; saveMedsDebounced(); };
+  body.appendChild(ta);
+
+  if(ap && ap.p.source){
+    const det = document.createElement('details'); det.className='meds-source';
+    det.innerHTML = '<summary>Doctor\'s instructions (exact text)</summary><pre></pre>';
+    det.querySelector('pre').textContent = ap.p.source;
+    body.appendChild(det);
+  }
 }
 </script>
 </body>
