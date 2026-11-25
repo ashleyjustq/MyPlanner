@@ -3061,11 +3061,67 @@ function updateBrowsedQuarterHealthUI(){
 }
 
 
-function saveCurrentDay(){
+/* Nightly nutrition estimate: a scheduled Claude job writes protein, calories
+   and nutritionEstimate straight into the day-YYYY-MM-DD row. This tab keeps
+   its own copy of the day in memory, so without a check it would write its
+   stale copy back on the next save (an edit, or the calendar/HubSpot auto-sync)
+   and wipe the estimate. Before every day save, and whenever the tab comes back
+   into view, we ask the server for those three fields and adopt them when the
+   server has a newer estimate, unless she typed her own numbers in this tab. */
+const nutritionEditedLocally = {}; // iso -> true once she types protein/calories here
+function markNutritionEdited(){
+  if(currentDayKey) nutritionEditedLocally[currentDayKey.replace('day-','')] = true;
+}
+async function mergeServerNutrition(iso, rec){
+  if(!currentUser || !rec || nutritionEditedLocally[iso]) return false;
+  try{
+    const { data, error } = await sb.from('planner_data')
+      .select('value').eq('user_id', currentUser.id).eq('key', 'day-'+iso).maybeSingle();
+    if(error || !data || !data.value) return false;
+    const srv = data.value;
+    const srvAt = srv.nutritionEstimate && srv.nutritionEstimate.estimatedAt;
+    const locAt = rec.nutritionEstimate && rec.nutritionEstimate.estimatedAt;
+    if(!srvAt || srvAt === locAt) return false;
+    if(locAt && new Date(srvAt) < new Date(locAt)) return false;
+    if(nutritionEditedLocally[iso]) return false; // she typed while we were fetching
+    rec.protein = Number(srv.protein) || 0;
+    rec.calories = Number(srv.calories) || 0;
+    rec.nutritionEstimate = srv.nutritionEstimate;
+    return true;
+  }catch(e){
+    console.warn('nutrition check failed', iso, e);
+    return false; // fall back to a normal save
+  }
+}
+function refreshNutritionUI(){
+  if(!dayData) return;
+  [['proteinInput','proteinRemaining'],['proteinInputWk','proteinRemainingWk']].forEach(([inId,remId])=>{
+    const el=document.getElementById(inId); if(el && document.activeElement!==el) el.value=dayData.protein;
+    const rem=document.getElementById(remId); if(rem) rem.textContent=Math.max(0, PROTEIN_TARGET-dayData.protein)+'g protein remaining';
+  });
+  [['caloriesInput','caloriesRemaining'],['caloriesInputWk','caloriesRemainingWk']].forEach(([inId,remId])=>{
+    const el=document.getElementById(inId); if(el && document.activeElement!==el) el.value=dayData.calories;
+    const rem=document.getElementById(remId); if(rem) rem.textContent=Math.max(0, CALORIE_TARGET-dayData.calories)+' cal remaining';
+  });
+}
+async function checkCurrentDayNutrition(){
+  if(!currentDayKey || !dayData) return;
+  const key = currentDayKey, rec = dayData;
+  const changed = await mergeServerNutrition(key.replace('day-',''), rec);
+  if(changed && currentDayKey === key && dayData === rec) refreshNutritionUI();
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') checkCurrentDayNutrition();
+});
+
+async function saveCurrentDay(){
   const key = currentDayKey;
   const iso = key.replace('day-','');
-  sset(key, dayData);
-  dayCache[iso] = dayData;
+  const rec = dayData;
+  dayCache[iso] = rec;
+  const changed = await mergeServerNutrition(iso, rec);
+  if(changed && currentDayKey === key && dayData === rec) refreshNutritionUI();
+  sset(key, rec);
 }
 const saveDayDebounced   = debounce(saveCurrentDay, 500);
 const saveWeekDebounced  = debounce(()=>sset(currentWeekKey, weekData), 500);
@@ -3252,6 +3308,7 @@ async function loadDay(){
   }
 
   renderDay();
+  checkCurrentDayNutrition(); // pick up a nightly estimate saved since this day was cached
 
   // Auto-refresh the calendar timeline and HubSpot tasks in the background —
   // no tap needed. Fires after renderDay() so the rest of the page is already
@@ -3386,6 +3443,7 @@ async function setDayType(iso, newType){
   if(!rec) rec = seedDay(iso);
   const oldType = rec.dayType;
   rec.dayType = (oldType===newType) ? null : newType;
+  await mergeServerNutrition(iso, rec);
   await sset('day-'+iso, rec);
   dayCache[iso] = rec;
 
@@ -3989,7 +4047,7 @@ function renderWeekdayDay(){
   const proteinEl = document.getElementById('proteinInput');
   if(document.activeElement !== proteinEl) proteinEl.value = dayData.protein;
   proteinEl.oninput=()=>{
-    dayData.protein = Math.max(0, parseInt(proteinEl.value,10)||0);
+    dayData.protein = Math.max(0, parseInt(proteinEl.value,10)||0); markNutritionEdited();
     document.getElementById('proteinRemaining').textContent = Math.max(0, PROTEIN_TARGET-dayData.protein)+'g protein remaining';
     saveDayDebounced();
   };
@@ -3998,7 +4056,7 @@ function renderWeekdayDay(){
   const caloriesEl = document.getElementById('caloriesInput');
   if(document.activeElement !== caloriesEl) caloriesEl.value = dayData.calories;
   caloriesEl.oninput=()=>{
-    dayData.calories = Math.max(0, parseInt(caloriesEl.value,10)||0);
+    dayData.calories = Math.max(0, parseInt(caloriesEl.value,10)||0); markNutritionEdited();
     document.getElementById('caloriesRemaining').textContent = Math.max(0, CALORIE_TARGET-dayData.calories)+' cal remaining';
     saveDayDebounced();
   };
@@ -4146,7 +4204,7 @@ function renderWeekendDay(){
   const proteinElWk = document.getElementById('proteinInputWk');
   if(document.activeElement !== proteinElWk) proteinElWk.value = dayData.protein;
   proteinElWk.oninput=()=>{
-    dayData.protein = Math.max(0, parseInt(proteinElWk.value,10)||0);
+    dayData.protein = Math.max(0, parseInt(proteinElWk.value,10)||0); markNutritionEdited();
     document.getElementById('proteinRemainingWk').textContent = Math.max(0, PROTEIN_TARGET-dayData.protein)+'g protein remaining';
     saveDayDebounced();
   };
@@ -4155,7 +4213,7 @@ function renderWeekendDay(){
   const caloriesElWk = document.getElementById('caloriesInputWk');
   if(document.activeElement !== caloriesElWk) caloriesElWk.value = dayData.calories;
   caloriesElWk.oninput=()=>{
-    dayData.calories = Math.max(0, parseInt(caloriesElWk.value,10)||0);
+    dayData.calories = Math.max(0, parseInt(caloriesElWk.value,10)||0); markNutritionEdited();
     document.getElementById('caloriesRemainingWk').textContent = Math.max(0, CALORIE_TARGET-dayData.calories)+' cal remaining';
     saveDayDebounced();
   };
